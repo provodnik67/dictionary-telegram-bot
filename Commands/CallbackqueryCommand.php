@@ -4,11 +4,10 @@
 namespace Commands;
 
 use Exception;
-use Longman\TelegramBot\Commands\SystemCommand;
 use Longman\TelegramBot\Entities\ServerResponse;
 use Misc\DB;
 
-class CallbackqueryCommand extends SystemCommand
+class CallbackqueryCommand extends FirstSystemCommand
 {
     /**
      * @var string
@@ -35,7 +34,7 @@ class CallbackqueryCommand extends SystemCommand
         if (preg_match_all('/^toggleComplicated:(\d+)/', $callback_data, $matches, PREG_SET_ORDER)) {
             $toggleResult = DB::toggleComplicated((int)$matches[0][1]);
             return $callback_query->answer([
-                                               'text'       => $toggleResult ? 'Done' : 'Error',
+                                               'text'       => $toggleResult ? $this->getTranslator()->trans('Done') : 'Error',
                                                'show_alert' => true,
                                                'cache_time' => 0,
                                            ]);

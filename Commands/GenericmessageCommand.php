@@ -2,7 +2,6 @@
 
 namespace Commands;
 
-use Longman\TelegramBot\Commands\SystemCommand;
 use Longman\TelegramBot\Conversation;
 use Longman\TelegramBot\Entities\InlineKeyboard;
 use Misc\DB;
@@ -10,7 +9,7 @@ use Longman\TelegramBot\Entities\ServerResponse;
 use Longman\TelegramBot\Exception\TelegramException;
 use Longman\TelegramBot\Request;
 
-class GenericmessageCommand extends SystemCommand
+class GenericmessageCommand extends FirstSystemCommand
 {
     /**
      * @var string
