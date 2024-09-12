@@ -1,0 +1,6 @@
+{
+    "require": {
+        "longman/telegram-bot": "^0.82.0",
+        "symfony/yaml": "^5.4"
+    }
+}

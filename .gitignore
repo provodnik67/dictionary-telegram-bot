@@ -1,0 +1,6 @@
+/composer.phar
+/config.yml
+/vendor/
+/pdo_error_log
+/readme
+.idea
