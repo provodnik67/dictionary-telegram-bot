@@ -22,6 +22,7 @@ while ($seconds--) {
     try {
         $telegram = new Longman\TelegramBot\Telegram($config['bot']['api_key'], $config['bot']['username']);
         $telegram->addCommandsPaths([__DIR__ . '/Commands']);
+        $telegram->addCommandsPaths([__DIR__ . '/BaseCommands']);
         $telegram->useGetUpdatesWithoutDatabase();
         $server_response = $telegram->handleGetUpdates();
         if ($server_response->isOk()) {

@@ -2,7 +2,7 @@
 
 namespace Longman\TelegramBot\Commands\SystemCommands;
 
-use Longman\TelegramBot\Commands\SystemCommand;
+use BaseCommands\SystemCommand;
 use Longman\TelegramBot\Entities\ServerResponse;
 use Longman\TelegramBot\Exception\TelegramException;
 
@@ -39,9 +39,9 @@ class SearchCommand extends SystemCommand
     public function execute(): ServerResponse
     {
         return $this->replyToChat(
-            'Hello!' . PHP_EOL .
-            'Type: !en word_in_english' . PHP_EOL .
-            'Type: !ru word_in_russian'
+            $this->getTranslator()->trans('Hello!') . PHP_EOL .
+            $this->getTranslator()->trans('Type: !en word_in_english') . PHP_EOL .
+            $this->getTranslator()->trans('Type: !ru word_in_russian')
         );
     }
 }

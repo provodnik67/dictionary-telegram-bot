@@ -2,6 +2,7 @@
 
 namespace Commands;
 
+use BaseCommands\SystemCommand;
 use Longman\TelegramBot\Conversation;
 use Longman\TelegramBot\Entities\InlineKeyboard;
 use Misc\DB;
@@ -9,7 +10,7 @@ use Longman\TelegramBot\Entities\ServerResponse;
 use Longman\TelegramBot\Exception\TelegramException;
 use Longman\TelegramBot\Request;
 
-class GenericmessageCommand extends FirstSystemCommand
+class GenericmessageCommand extends SystemCommand
 {
     /**
      * @var string
@@ -43,7 +44,7 @@ class GenericmessageCommand extends FirstSystemCommand
             $number = (int)$message->getText();
             $messages = DB::getSpecificNumberOfWords($conversation->getUserId(), min($number, self::MAX_WORDS_NUMBER));
             if (!$messages) {
-                $this->replyToChat('Your dictionary is empty. Use the command !add.');
+                $this->replyToChat($this->getTranslator()->trans('Your dictionary is empty. Use the command !add.'));
             }
             $this->sendWordsToTheChat($conversation->getChatId(), $messages);
         }
@@ -53,7 +54,7 @@ class GenericmessageCommand extends FirstSystemCommand
                 $number = (int)$matches[0][1];
                 $messages = DB::getSpecificNumberOfWords($conversation->getUserId(), min($number, self::MAX_WORDS_NUMBER), true);
                 if (!$messages) {
-                    $this->replyToChat('Your complicated dictionary is empty.');
+                    $this->replyToChat($this->getTranslator()->trans('Your complicated dictionary is empty.'));
                 }
                 $this->sendWordsToTheChat($conversation->getChatId(), $messages);
             }
@@ -63,7 +64,7 @@ class GenericmessageCommand extends FirstSystemCommand
             $en = $matches[0][1];
             $ru = $matches[0][2];
             DB::insertWord($conversation->getUserId(), $ru, $en);
-            $this->replyToChat('Word was successfully added.');
+            $this->replyToChat($this->getTranslator()->trans('Word was successfully added.'));
         }
 
         if (preg_match_all('/^!ru (.+)/', $message->getText(), $matches, PREG_SET_ORDER)) {
@@ -81,26 +82,32 @@ class GenericmessageCommand extends FirstSystemCommand
         return Request::emptyResponse();
     }
 
-    /**
-     * @throws TelegramException
-     * @todo write exception handling
-     */
     private function sendWordsToTheChat(int $chatId, array $messages): void
     {
         if (count($messages) === self::MAX_WORDS_NUMBER) {
-            Request::sendMessage([
-                                     'chat_id' => $chatId,
-                                     'text' => sprintf('Max words count through one output - %d', self::MAX_WORDS_NUMBER),
-                                 ]);
+            try {
+                Request::sendMessage([
+                                         'chat_id' => $chatId,
+                                         'text' => sprintf($this->getTranslator()->trans('Max words count through one output - %d'), self::MAX_WORDS_NUMBER),
+                                     ]);
+            }
+            catch (TelegramException $e) {
+                file_put_contents(__DIR__ . '/../tg_error_log', $e->getMessage() . PHP_EOL, FILE_APPEND);
+            }
         }
         foreach ($messages as $message) {
-            $inline_keyboard = new InlineKeyboard([['text' => $message->complicated ? 'Exclude from complicated' : 'Add to complicated', 'callback_data' => sprintf('toggleComplicated:%d', $message->id)],]);
-            Request::sendMessage([
-                                     'chat_id' => $chatId,
-                                     'parse_mode' => 'HTML',
-                                     'text' => $message->text,
-                                     'reply_markup' => $inline_keyboard
-                                 ]);
+            $inline_keyboard = new InlineKeyboard([['text' => $message->complicated ? $this->getTranslator()->trans('Exclude from complicated') : $this->getTranslator()->trans('Add to complicated'), 'callback_data' => sprintf('toggleComplicated:%d', $message->id)]]);
+            try {
+                Request::sendMessage([
+                                         'chat_id' => $chatId,
+                                         'parse_mode' => 'HTML',
+                                         'text' => $message->text,
+                                         'reply_markup' => $inline_keyboard
+                                     ]);
+            }
+            catch (TelegramException $e) {
+                file_put_contents(__DIR__ . '/../tg_error_log', $e->getMessage() . PHP_EOL, FILE_APPEND);
+            }
         }
     }
 }

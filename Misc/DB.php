@@ -86,7 +86,7 @@ class DB
             $key = rand(0, 1);
             $messages[] = (object) [
                 'id' => $row['id'],
-                'text' => sprintf('%s%s' . PHP_EOL . '<span class="tg-spoiler">%s</span>', ($row['complicated'] ? '** ' : ''), $row[$keys[$key]], $row[$keys[abs($key - 1)]]),
+                'text' => sprintf('%s%s --> <span class="tg-spoiler">%s</span>', ($row['complicated'] ? '** ' : ''), $row[$keys[$key]], $row[$keys[abs($key - 1)]]),
                 'complicated' => (bool) $row['complicated']
             ];
         }
@@ -128,7 +128,7 @@ class DB
         while ($row = $stmt->fetch()) {
             $messages[] = (object) [
                 'id' => $row['id'],
-                'text' => sprintf('%s%s' . PHP_EOL . '<span class="tg-spoiler">%s</span>', ($row['complicated'] ? '** ' : ''), $row[$column], $row[$oppositeColumn]),
+                'text' => sprintf('%s%s --> <span class="tg-spoiler">%s</span>', ($row['complicated'] ? '** ' : ''), $row[$column], $row[$oppositeColumn]),
                 'complicated' => (bool) $row['complicated']
             ];
         }

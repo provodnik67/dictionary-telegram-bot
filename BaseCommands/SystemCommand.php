@@ -1,19 +1,16 @@
 <?php
 
-namespace Commands;
+namespace BaseCommands;
 
 use Locale;
-use Longman\TelegramBot\Commands\SystemCommand;
+use Longman\TelegramBot\Commands\SystemCommand as BaseCommandSystem;
 use Longman\TelegramBot\Entities\Update;
 use Longman\TelegramBot\Telegram;
 use Symfony\Component\Translation\Loader\YamlFileLoader;
 use Symfony\Component\Translation\Translator;
 use Symfony\Component\Yaml\Yaml;
 
-/**
- * @todo в Telegram -> getCommandsList() итератор первым грузит SearchCommand, нужно что бы класс FirstSystemCommand был первым + переименовать его
- */
-class FirstSystemCommand extends SystemCommand
+class SystemCommand extends BaseCommandSystem
 {
     private $translator;
 
