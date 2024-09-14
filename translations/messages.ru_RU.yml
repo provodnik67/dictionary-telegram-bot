@@ -7,6 +7,11 @@ Max words count through one output - %d: Максимальное количес
 Exclude from complicated: Убрать из сложных
 Add to complicated: Добавить в сложные
 Hello!: Привет!
-"Type: !en word_in_english": Введите !en слово_на_английском
-"Type: !ru word_in_russian": Введите !ru слово_на_русском
-"Type: !add word_in_english - word_in_russian": Введите !add слово_на_английском - слово_на_русском
+"To search words in English type: `!en word_in_english`.": "Чтобы искать слова на Английском введите: `!en слово_на_английском`."
+"To search words in Russian type: `!ru word_in_russian`.": "Чтобы искать слова на Английском введите: `!ru слово_на_русском`."
+"To add a word to the dictionary type: `!add word_in_english - word_in_russian`.": "Чтобы добавить слово в словарь введите: `!add слово_на_английском - слово_на_русском`."
+"To get random words to learn type: `!n`. Where n - number of words. Example: !12.": "Чтобы получить случайный список слов введите: `!n`. Где n - количество слов. Пример: !12."
+"To get random complicated words to learn type: `!*n`. Where n - number of words. Example: !*12.": "Чтобы получить случайный список сложных слов введите: `!*n`. Где n - количество слов. Пример: !*12."
+No data.: Нет данных
+Words total count -:  Общее количество слов -
+Complicated -: Сложные -

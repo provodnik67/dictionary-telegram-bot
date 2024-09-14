@@ -150,4 +150,24 @@ class DB
         }
         return false;
     }
+
+    public static function getStatistic(int $userId): array
+    {
+        if (!self::isDbConnected()) {
+            return [];
+        }
+        try {
+            $stmt = self::$pdo->prepare(sprintf('SELECT
+                (SELECT COUNT(*) FROM `%s` WHERE user_id = :user_id) AS TOTAL,
+                (SELECT COUNT(*) FROM `%s` WHERE user_id = :user_id AND `complicated` = :complicated) AS COMPLICATED
+            ', self::CARDS, self::CARDS));
+            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->bindValue(':complicated', 1, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetch();
+        } catch (PDOException $e) {
+            file_put_contents(__DIR__ . '/../pdo_error_log', $e->getMessage() . PHP_EOL, FILE_APPEND);
+        }
+        return [];
+    }
 }

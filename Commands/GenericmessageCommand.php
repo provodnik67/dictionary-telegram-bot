@@ -25,7 +25,7 @@ class GenericmessageCommand extends SystemCommand
     /**
      * @var string
      */
-    protected $version = '1.1.0';
+    protected $version = '1.0.0';
 
     private const MAX_WORDS_NUMBER = 20;
 
@@ -40,8 +40,8 @@ class GenericmessageCommand extends SystemCommand
             $message->getChat()->getId()
         );
 
-        if (is_numeric($message->getText())) {
-            $number = (int)$message->getText();
+        if (preg_match_all('/^!(\d+)/', $message->getText(), $matches, PREG_SET_ORDER)) {
+            $number = (int)$matches[0][1];
             $messages = DB::getSpecificNumberOfWords($conversation->getUserId(), min($number, self::MAX_WORDS_NUMBER));
             if (!$messages) {
                 $this->replyToChat($this->getTranslator()->trans('Your dictionary is empty. Use the command !add.'));
@@ -49,7 +49,7 @@ class GenericmessageCommand extends SystemCommand
             $this->sendWordsToTheChat($conversation->getChatId(), $messages);
         }
 
-        if (preg_match_all('/^!(\d+)/', $message->getText(), $matches, PREG_SET_ORDER)) {
+        if (preg_match_all('/^!\*(\d+)/', $message->getText(), $matches, PREG_SET_ORDER)) {
             if (is_numeric($matches[0][1])) {
                 $number = (int)$matches[0][1];
                 $messages = DB::getSpecificNumberOfWords($conversation->getUserId(), min($number, self::MAX_WORDS_NUMBER), true);
