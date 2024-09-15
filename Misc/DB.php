@@ -2,16 +2,21 @@
 
 namespace Misc;
 
+use DateTime;
 use Exception;
+use Model\User;
 use PDO;
 use PDOException;
 
 /**
  * @todo argument user_id in the most of methods, exclude it
+ * @todo написать отдельный logger как сервис
  */
 class DB
 {
     private const CARDS = 'cards';
+
+    private const USERS = 'dictionary_user';
 
     /**
      * @var array
@@ -46,7 +51,7 @@ class DB
             $pdo = new PDO($dsn, $credentials['user'], $credentials['password'], $options);
             $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
         } catch (PDOException $e) {
-            file_put_contents(__DIR__ . '/../pdo_error_log', $e->getMessage() . PHP_EOL, FILE_APPEND);
+            file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
         }
 
         self::$pdo = $pdo;
@@ -79,7 +84,7 @@ class DB
             $stmt->bindValue(':complicated', $hard ? 1 : 0, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
-            file_put_contents(__DIR__ . '/../pdo_error_log', $e->getMessage() . PHP_EOL, FILE_APPEND);
+            file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
         }
         $keys = ['ru', 'en'];
         while ($row = $stmt->fetch()) {
@@ -106,7 +111,7 @@ class DB
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             return $stmt->execute();
         } catch (PDOException $e) {
-            file_put_contents(__DIR__ . '/../pdo_error_log', $e->getMessage() . PHP_EOL, FILE_APPEND);
+            file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
         }
         return false;
     }
@@ -122,7 +127,7 @@ class DB
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
-            file_put_contents(__DIR__ . '/../pdo_error_log', $e->getMessage() . PHP_EOL, FILE_APPEND);
+            file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
         }
         $oppositeColumn = $column === 'en' ? 'ru' : 'en';
         while ($row = $stmt->fetch()) {
@@ -146,7 +151,7 @@ class DB
             $stmt->bindValue(':word_id', $wordId, PDO::PARAM_INT);
             return $stmt->execute();
         } catch (PDOException $e) {
-            file_put_contents(__DIR__ . '/../pdo_error_log', $e->getMessage() . PHP_EOL, FILE_APPEND);
+            file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
         }
         return false;
     }
@@ -166,8 +171,36 @@ class DB
             $stmt->execute();
             return $stmt->fetch();
         } catch (PDOException $e) {
-            file_put_contents(__DIR__ . '/../pdo_error_log', $e->getMessage() . PHP_EOL, FILE_APPEND);
+            file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
         }
         return [];
+    }
+
+    public static function getOrCreateUser(int $userId): ?User
+    {
+        if (!self::isDbConnected()) {
+            return null;
+        }
+        try {
+            $stmt = self::$pdo->prepare(sprintf('SELECT * FROM `%s` WHERE id = :user_id', self::USERS));
+            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->execute();
+            if($data = $stmt->fetch()) {
+                return User::factory($data);
+            }
+            $newUser = User::factory(['id' => $userId, 'created' => new DateTime(), 'banned' => false]);
+            $stmt = self::$pdo->prepare(sprintf('INSERT INTO `%s`(`id`, `created`, `banned`) VALUES (:id, :created, :banned)', self::USERS));
+            $stmt->bindValue(':id', $userId, PDO::PARAM_INT);
+            $stmt->bindValue(':created', $newUser->getCreated()->format('Y-m-d H:i:s'));
+            $stmt->bindValue(':banned', $newUser->isBanned(), PDO::PARAM_BOOL);
+            $stmt->execute();
+            return $newUser;
+        } catch (PDOException|Exception $e) {
+            if($e instanceof PDOException) {
+                file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+            }
+            file_put_contents(__DIR__ . '/../general_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+        }
+        return null;
     }
 }

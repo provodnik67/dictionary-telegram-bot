@@ -9,7 +9,9 @@ while ($try--) {
     }
 }
 require __DIR__ . '/vendor/autoload.php';
+//@todo надо весь каталог Misc грузить и модельки все, а не по одной
 require __DIR__ . '/Misc/DB.php';
+require __DIR__ . '/Model/User.php';
 $config = \Symfony\Component\Yaml\Yaml::parseFile(__DIR__ . '/config.yml');
 $seconds = 20;
 try {

@@ -9,6 +9,7 @@ use Misc\DB;
 use Longman\TelegramBot\Entities\ServerResponse;
 use Longman\TelegramBot\Exception\TelegramException;
 use Longman\TelegramBot\Request;
+use Model\User;
 
 class GenericmessageCommand extends SystemCommand
 {
@@ -30,6 +31,11 @@ class GenericmessageCommand extends SystemCommand
     private const MAX_WORDS_NUMBER = 20;
 
     /**
+     * @var User|null
+     */
+    private $user = null;
+
+    /**
      * @throws TelegramException
      */
     public function execute(): ServerResponse
@@ -39,6 +45,10 @@ class GenericmessageCommand extends SystemCommand
             $message->getFrom()->getId(),
             $message->getChat()->getId()
         );
+
+        if ($message->getText() === 'debug') {
+            $this->user = DB::getOrCreateUser($conversation->getUserId());
+        }
 
         if (is_numeric($message->getText())) {
             $number = (int)$message->getText();
