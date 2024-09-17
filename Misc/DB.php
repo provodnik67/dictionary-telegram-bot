@@ -7,6 +7,7 @@ use Exception;
 use Model\User;
 use PDO;
 use PDOException;
+use PDOStatement;
 
 /**
  * @todo argument user_id in the most of methods, exclude it
@@ -70,24 +71,11 @@ class DB
         return self::$pdo;
     }
 
-    public static function getSpecificNumberOfWords(int $userId, int $number, bool $hard = false): array
+    private static function fillMessages(PDOStatement $statement): array
     {
-        if (!self::isDbConnected()) {
-            return [];
-        }
         $messages = [];
-        try {
-            $sql = sprintf('SELECT * FROM %s WHERE user_id = :user_id AND complicated = :complicated ORDER BY RAND() LIMIT :limit', self::CARDS);
-            $stmt = self::$pdo->prepare($sql);
-            $stmt->bindValue(':limit', $number, PDO::PARAM_INT);
-            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
-            $stmt->bindValue(':complicated', $hard ? 1 : 0, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
-        }
         $keys = ['ru', 'en'];
-        while ($row = $stmt->fetch()) {
+        while ($row = $statement->fetch()) {
             $key = rand(0, 1);
             $messages[] = (object) [
                 'id' => $row['id'],
@@ -95,6 +83,61 @@ class DB
                 'complicated' => (bool) $row['complicated']
             ];
         }
+        return $messages;
+    }
+
+    public static function getSpecificNumberOfWords(int $userId, int $number, bool $hard = false): array
+    {
+        if (!self::isDbConnected()) {
+            return [];
+        }
+
+        try {
+            $stmt = self::$pdo->prepare(sprintf('SELECT * FROM %s WHERE user_id = :user_id %s AND shown = :shown ORDER BY RAND() LIMIT :limit', self::CARDS, ($hard ? 'AND complicated = :complicated' : '')));
+            $stmt->bindValue(':limit', $number, PDO::PARAM_INT);
+            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            if($hard) {
+                $stmt->bindValue(':complicated', true, PDO::PARAM_BOOL);
+            }
+            $stmt->bindValue(':shown', false, PDO::PARAM_BOOL);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+        }
+        $messages = self::fillMessages($stmt);
+        //@todo команда падает после UPDATE %s SET shown = false , но все в порядке если перезапустить, разобраться
+//        $reset = false;
+//        if($messages && $number > count($messages)) {
+//            $statistics = self::getStatistic($userId);
+//            if($statistics['TOTAL'] >= $number) {
+//                try {
+//                    $stmt = self::$pdo->prepare(sprintf('SELECT * FROM %s WHERE user_id = :user_id AND id NOT IN (%s) ORDER BY RAND() LIMIT :limit', self::CARDS, implode(',', array_map(function ($message) { return $message->id; }, $messages))));
+//                    $stmt->bindValue(':limit', ($number - count($messages)), PDO::PARAM_INT);
+//                    $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+//                    $stmt->execute();
+//                } catch (PDOException $e) {
+//                    file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+//                }
+//                $messages = array_merge($message, self::fillMessages($stmt));
+//                try {
+//                    $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET shown = false WHERE user_id = :user_id', self::CARDS));
+//                    $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+//                    $stmt->execute();
+//                    $reset = true;
+//                } catch (PDOException $e) {
+//                    file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+//                }
+//            }
+//        }
+//        if(!$reset && $messages) {
+//            try {
+//                $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET shown = true WHERE user_id = :user_id AND id IN (%s)', self::CARDS, implode(',', array_map(function ($message) { return $message->id; }, $messages))));
+//                $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+//                $stmt->execute();
+//            } catch (PDOException $e) {
+//                file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+//            }
+//        }
         return $messages;
     }
 
@@ -145,9 +188,8 @@ class DB
         if (!self::isDbConnected()) {
             return false;
         }
-        $sql = 'UPDATE cards SET complicated = !complicated WHERE id = :word_id';
         try {
-            $stmt = self::$pdo->prepare($sql);
+            $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET complicated = !complicated WHERE id = :word_id', self::CARDS));
             $stmt->bindValue(':word_id', $wordId, PDO::PARAM_INT);
             return $stmt->execute();
         } catch (PDOException $e) {

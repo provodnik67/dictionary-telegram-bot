@@ -1,4 +1,5 @@
 <?php
+//@todo есть дубли при запуске в планировщике - разобраться
 $try = 3;
 while ($try--) {
     if((int)shell_exec('ps aux | grep -v grep | grep ' . __FILE__ . ' | wc  -l') > 2) {
