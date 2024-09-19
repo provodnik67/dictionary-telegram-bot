@@ -1,5 +1,4 @@
 <?php
-//@todo есть дубли при запуске в планировщике - разобраться
 $try = 3;
 while ($try--) {
     if((int)shell_exec('ps aux | grep -v grep | grep ' . __FILE__ . ' | wc  -l') > 2) {
@@ -13,6 +12,7 @@ require __DIR__ . '/vendor/autoload.php';
 //@todo надо весь каталог Misc грузить и модельки все, а не по одной
 require __DIR__ . '/Misc/DB.php';
 require __DIR__ . '/Model/User.php';
+require __DIR__ . '/Model/Message.php';
 $config = \Symfony\Component\Yaml\Yaml::parseFile(__DIR__ . '/config.yml');
 $seconds = 20;
 try {

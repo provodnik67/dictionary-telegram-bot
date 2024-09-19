@@ -9,6 +9,7 @@ use Misc\DB;
 use Longman\TelegramBot\Entities\ServerResponse;
 use Longman\TelegramBot\Exception\TelegramException;
 use Longman\TelegramBot\Request;
+use Model\Message;
 
 class GenericmessageCommand extends SystemCommand
 {
@@ -100,13 +101,14 @@ class GenericmessageCommand extends SystemCommand
                 file_put_contents(__DIR__ . '/../tg_error_log', $e->getMessage() . PHP_EOL, FILE_APPEND);
             }
         }
+        /** @var Message $message */
         foreach ($messages as $message) {
-            $inline_keyboard = new InlineKeyboard([['text' => $message->complicated ? $this->getTranslator()->trans('Exclude from complicated') : $this->getTranslator()->trans('Add to complicated'), 'callback_data' => sprintf('toggleComplicated:%d', $message->id)]]);
+            $inline_keyboard = new InlineKeyboard([['text' => $message->isComplicated() ? $this->getTranslator()->trans('Exclude from complicated') : $this->getTranslator()->trans('Add to complicated'), 'callback_data' => sprintf('toggleComplicated:%d', $message->getId())]]);
             try {
                 Request::sendMessage([
                                          'chat_id' => $chatId,
                                          'parse_mode' => 'HTML',
-                                         'text' => $message->text,
+                                         'text' => $message->getText(),
                                          'reply_markup' => $inline_keyboard
                                      ]);
             }
