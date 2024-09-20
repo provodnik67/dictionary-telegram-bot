@@ -14,5 +14,7 @@ Hello!: Привет!
 "To get random complicated words to learn type: `*n`. Where n - number of words. Example: *12.": "Чтобы получить случайный список сложных слов введите: `*n`. Где n - количество слов. Пример: *12."
 No data.: Нет данных
 Words total count -:  Общее количество слов -
+Words total shown count -: Общее количество просмотренных слов -
 Complicated -: Сложные -
+Complicated shown -: Сложные просмотренные -
 Sorry, your account is banned.: Простите, ваш аккаунт заблокирован.

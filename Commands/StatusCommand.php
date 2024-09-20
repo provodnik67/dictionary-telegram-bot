@@ -53,7 +53,9 @@ class StatusCommand extends SystemCommand
         }
         return $this->replyToChat(
             $this->getTranslator()->trans('Words total count -') . ' ' . $statistics['TOTAL'] . PHP_EOL .
-            $this->getTranslator()->trans('Complicated -') . ' ' . $statistics['COMPLICATED']
+            $this->getTranslator()->trans('Words total shown count -') . ' ' . $statistics['TOTAL_SHOWN'] . PHP_EOL .
+            $this->getTranslator()->trans('Complicated -') . ' ' . $statistics['COMPLICATED'] . PHP_EOL .
+            $this->getTranslator()->trans('Complicated shown -') . ' ' . $statistics['COMPLICATED_SHOWN']
         );
     }
 }

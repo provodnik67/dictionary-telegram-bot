@@ -67,11 +67,6 @@ class DB
         return self::$pdo !== null;
     }
 
-    public static function getPdo(): ?PDO
-    {
-        return self::$pdo;
-    }
-
     private static function fillMessages(PDOStatement $statement): array
     {
         $messages = [];
@@ -89,13 +84,32 @@ class DB
         return $messages;
     }
 
-    /**
-     * @todo Если заканчиваются только сложные слова, то shown сбрасывается для всего словаря, должен только для сложных
-     */
+    private static function resetDictionary(int $userId, bool $hard)
+    {
+        try {
+            $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET shown = false WHERE user_id = :user_id %s', self::CARDS, ($hard ? 'AND complicated = :complicated' : '')));
+            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            if($hard) {
+                $stmt->bindValue(':complicated', true, PDO::PARAM_BOOL);
+            }
+            $stmt->execute();
+        } catch (PDOException $e) {
+            file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+        }
+    }
+
     public static function getSpecificNumberOfWords(int $userId, int $number, bool $hard = false): array
     {
         if (!self::isDbConnected()) {
             return [];
+        }
+
+        $statistics = self::getStatistic($userId);
+        if(
+            ($hard && $statistics['COMPLICATED'] === $statistics['COMPLICATED_SHOWN'])
+            || ($statistics['TOTAL'] === $statistics['TOTAL_SHOWN'])
+        ) {
+            self::resetDictionary($userId, $hard);
         }
 
         try {
@@ -112,27 +126,25 @@ class DB
         }
         $messages = self::fillMessages($stmt);
         $reset = false;
-        if($messages && $number > count($messages)) {
-            $statistics = self::getStatistic($userId);
-            if($statistics['TOTAL'] >= $number) {
-                try {
-                    $stmt = self::$pdo->prepare(sprintf('SELECT * FROM %s WHERE user_id = :user_id AND id NOT IN (%s) ORDER BY RAND() LIMIT :limit', self::CARDS, implode(',', array_map(function (Message $message) { return $message->getId(); }, $messages))));
-                    $stmt->bindValue(':limit', ($number - count($messages)), PDO::PARAM_INT);
-                    $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
-                    $stmt->execute();
-                } catch (PDOException $e) {
-                    file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+        if(
+            $messages
+            && $number > count($messages)
+            && ($hard ? $statistics['COMPLICATED'] : $statistics['TOTAL']) >= $number
+        ) {
+            try {
+                $stmt = self::$pdo->prepare(sprintf('SELECT * FROM %s WHERE user_id = :user_id %s AND id NOT IN (%s) ORDER BY RAND() LIMIT :limit', self::CARDS, ($hard ? 'AND complicated = :complicated' : ''), implode(',', array_map(function (Message $message) { return $message->getId(); }, $messages))));
+                $stmt->bindValue(':limit', ($number - count($messages)), PDO::PARAM_INT);
+                $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+                if($hard) {
+                    $stmt->bindValue(':complicated', true, PDO::PARAM_BOOL);
                 }
-                $messages = array_merge($messages, self::fillMessages($stmt));
-                try {
-                    $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET shown = false WHERE user_id = :user_id', self::CARDS));
-                    $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
-                    $stmt->execute();
-                    $reset = true;
-                } catch (PDOException $e) {
-                    file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
-                }
+                $stmt->execute();
+            } catch (PDOException $e) {
+                file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
             }
+            $messages = array_merge($messages, self::fillMessages($stmt));
+            self::resetDictionary($userId, $hard);
+            $reset = true;
         }
         if(!$reset && $messages) {
             try {
@@ -168,7 +180,7 @@ class DB
     {
         $messages = [];
         try {
-            $sql = sprintf('SELECT * FROM %s WHERE %s LIKE :phrase AND user_id = :user_id LIMIT :limit', self::CARDS, $column);
+            $sql = sprintf('SELECT * FROM %s WHERE %s LIKE :phrase AND `user_id` = :user_id LIMIT :limit', self::CARDS, $column);
             $stmt = self::$pdo->prepare($sql);
             $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
             $stmt->bindValue(':phrase', $phrase . '%');
@@ -196,7 +208,7 @@ class DB
             return false;
         }
         try {
-            $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET complicated = !complicated WHERE id = :word_id', self::CARDS));
+            $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET `complicated` = !complicated WHERE id = :word_id', self::CARDS));
             $stmt->bindValue(':word_id', $wordId, PDO::PARAM_INT);
             return $stmt->execute();
         } catch (PDOException $e) {
@@ -212,11 +224,14 @@ class DB
         }
         try {
             $stmt = self::$pdo->prepare(sprintf('SELECT
-                (SELECT COUNT(*) FROM `%s` WHERE user_id = :user_id) AS TOTAL,
-                (SELECT COUNT(*) FROM `%s` WHERE user_id = :user_id AND `complicated` = :complicated) AS COMPLICATED
-            ', self::CARDS, self::CARDS));
+                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id) AS TOTAL,
+                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `shown` = :shown) AS TOTAL_SHOWN,
+                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `complicated` = :complicated) AS COMPLICATED,
+                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `complicated` = :complicated AND `shown` = :shown) AS COMPLICATED_SHOWN
+            ', self::CARDS, self::CARDS, self::CARDS, self::CARDS));
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
-            $stmt->bindValue(':complicated', 1, PDO::PARAM_INT);
+            $stmt->bindValue(':complicated', true, PDO::PARAM_BOOL);
+            $stmt->bindValue(':shown', true, PDO::PARAM_BOOL);
             $stmt->execute();
             return $stmt->fetch();
         } catch (PDOException $e) {
