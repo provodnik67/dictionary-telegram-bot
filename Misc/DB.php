@@ -89,6 +89,9 @@ class DB
         return $messages;
     }
 
+    /**
+     * @todo Если заканчиваются только сложные слова, то shown сбрасывается для всего словаря, должен только для сложных
+     */
     public static function getSpecificNumberOfWords(int $userId, int $number, bool $hard = false): array
     {
         if (!self::isDbConnected()) {
