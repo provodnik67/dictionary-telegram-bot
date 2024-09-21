@@ -33,7 +33,7 @@ class DB
     /**
      * @throws Exception
      */
-    public static function initialize(array $credentials, $encoding = 'utf8'): PDO {
+    public static function initialize(array $credentials, $encoding = 'utf8', int $errMode = PDO::ERRMODE_WARNING): PDO {
         if (empty($credentials)) {
             throw new Exception('MySQL credentials not provided!');
         }
@@ -51,7 +51,7 @@ class DB
         $options = [PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES ' . $encoding];
         try {
             $pdo = new PDO($dsn, $credentials['user'], $credentials['password'], $options);
-            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
+            $pdo->setAttribute(PDO::ATTR_ERRMODE, $errMode);
         } catch (PDOException $e) {
             file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
         }

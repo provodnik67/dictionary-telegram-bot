@@ -16,7 +16,7 @@ require __DIR__ . '/Model/Message.php';
 $config = \Symfony\Component\Yaml\Yaml::parseFile(__DIR__ . '/config.yml');
 $seconds = 20;
 try {
-    \Misc\DB::initialize($config['database']);
+    \Misc\DB::initialize($config['database'], 'utf8', \PDO::ERRMODE_EXCEPTION);
 } catch (Exception $e) {
     file_put_contents(__DIR__ . '/error.log', $e->getMessage() . PHP_EOL, FILE_APPEND);
 }
