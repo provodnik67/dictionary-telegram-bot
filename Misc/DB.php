@@ -208,7 +208,7 @@ class DB
             return false;
         }
         try {
-            $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET `complicated` = !complicated WHERE id = :word_id', self::CARDS));
+            $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET `complicated` = !complicated, `shown` = false WHERE id = :word_id', self::CARDS));
             $stmt->bindValue(':word_id', $wordId, PDO::PARAM_INT);
             return $stmt->execute();
         } catch (PDOException $e) {
