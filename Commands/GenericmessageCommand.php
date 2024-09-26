@@ -98,7 +98,7 @@ class GenericmessageCommand extends SystemCommand
                                      ]);
             }
             catch (TelegramException $e) {
-                file_put_contents(__DIR__ . '/../tg_error_log', $e->getMessage() . PHP_EOL, FILE_APPEND);
+                $this->getLogger()->error($e->getMessage());
             }
         }
         /** @var Message $message */
@@ -113,7 +113,7 @@ class GenericmessageCommand extends SystemCommand
                                      ]);
             }
             catch (TelegramException $e) {
-                file_put_contents(__DIR__ . '/../tg_error_log', $e->getMessage() . PHP_EOL, FILE_APPEND);
+                $this->getLogger()->error($e->getMessage());
             }
         }
     }

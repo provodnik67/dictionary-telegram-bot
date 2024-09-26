@@ -1,4 +1,11 @@
 <?php
+
+use Misc\DB;
+use Monolog\Logger;
+use Monolog\Handler\StreamHandler;
+use Monolog\Handler\FirePHPHandler;
+use Symfony\Component\Yaml\Yaml;
+
 $try = 3;
 while ($try--) {
     if((int)shell_exec('ps aux | grep -v grep | grep ' . __FILE__ . ' | wc  -l') > 2) {
@@ -13,12 +20,15 @@ require __DIR__ . '/vendor/autoload.php';
 require __DIR__ . '/Misc/DB.php';
 require __DIR__ . '/Model/User.php';
 require __DIR__ . '/Model/Message.php';
-$config = \Symfony\Component\Yaml\Yaml::parseFile(__DIR__ . '/config.yml');
+$config = Yaml::parseFile(__DIR__ . '/config.yml');
 $seconds = 20;
+$pdoLogger = new Logger('pdo_logger');
+$pdoLogger->pushHandler(new StreamHandler(__DIR__ . '/pdo_error_log', Logger::DEBUG));
+$pdoLogger->pushHandler(new FirePHPHandler());
 try {
-    \Misc\DB::initialize($config['database'], 'utf8', \PDO::ERRMODE_EXCEPTION);
+    DB::initialize($config['database'], 'utf8', PDO::ERRMODE_EXCEPTION, $pdoLogger);
 } catch (Exception $e) {
-    file_put_contents(__DIR__ . '/error.log', $e->getMessage() . PHP_EOL, FILE_APPEND);
+    $pdoLogger->error($e->getMessage());
 }
 
 while ($seconds--) {

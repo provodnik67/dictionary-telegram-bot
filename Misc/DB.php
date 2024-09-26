@@ -6,13 +6,13 @@ use DateTime;
 use Exception;
 use Model\Message;
 use Model\User;
+use Monolog\Logger;
 use PDO;
 use PDOException;
 use PDOStatement;
 
 /**
  * @todo argument user_id in the most of methods, exclude it
- * @todo написать отдельный logger как сервис
  */
 class DB
 {
@@ -31,9 +31,14 @@ class DB
     protected static $pdo;
 
     /**
+     * @var Logger
+     */
+    private static $logger;
+
+    /**
      * @throws Exception
      */
-    public static function initialize(array $credentials, $encoding = 'utf8', int $errMode = PDO::ERRMODE_WARNING): PDO {
+    public static function initialize(array $credentials, $encoding = 'utf8', int $errMode = PDO::ERRMODE_WARNING, Logger $logger): PDO {
         if (empty($credentials)) {
             throw new Exception('MySQL credentials not provided!');
         }
@@ -49,11 +54,12 @@ class DB
         }
         $pdo = null;
         $options = [PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES ' . $encoding];
+        self::$logger = $logger;
         try {
             $pdo = new PDO($dsn, $credentials['user'], $credentials['password'], $options);
             $pdo->setAttribute(PDO::ATTR_ERRMODE, $errMode);
         } catch (PDOException $e) {
-            file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+            self::$logger->error($e->getMessage());
         }
 
         self::$pdo = $pdo;
@@ -78,7 +84,7 @@ class DB
                 $message->setText(sprintf('%s%s --> <span class="tg-spoiler">%s</span>', ($row['complicated'] ? '** ' : ''), $row[$keys[$key]], $row[$keys[abs($key - 1)]]));
                 $messages[] = $message;
             } catch (Exception $e) {
-                file_put_contents(__DIR__ . '/../general_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+                self::$logger->error($e->getMessage());
             }
         }
         return $messages;
@@ -94,7 +100,7 @@ class DB
             }
             $stmt->execute();
         } catch (PDOException $e) {
-            file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+            self::$logger->error($e->getMessage());
         }
     }
 
@@ -122,7 +128,7 @@ class DB
             $stmt->bindValue(':shown', false, PDO::PARAM_BOOL);
             $stmt->execute();
         } catch (PDOException $e) {
-            file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+            self::$logger->error($e->getMessage());
         }
         $messages = self::fillMessages($stmt);
         $reset = false;
@@ -140,7 +146,7 @@ class DB
                 }
                 $stmt->execute();
             } catch (PDOException $e) {
-                file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+                self::$logger->error($e->getMessage());
             }
             $messages = array_merge($messages, self::fillMessages($stmt));
             self::resetDictionary($userId, $hard);
@@ -152,7 +158,7 @@ class DB
                 $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
                 $stmt->execute();
             } catch (PDOException $e) {
-                file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+                self::$logger->error($e->getMessage());
             }
         }
         return $messages;
@@ -171,7 +177,7 @@ class DB
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             return $stmt->execute();
         } catch (PDOException $e) {
-            file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+            self::$logger->error($e->getMessage());
         }
         return false;
     }
@@ -187,7 +193,7 @@ class DB
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
-            file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+            self::$logger->error($e->getMessage());
         }
         $oppositeColumn = $column === 'en' ? 'ru' : 'en';
         while ($row = $stmt->fetch()) {
@@ -196,7 +202,7 @@ class DB
                 $message->setText(sprintf('%s%s --> <span class="tg-spoiler">%s</span>', ($row['complicated'] ? '** ' : ''), $row[$column], $row[$oppositeColumn]));
                 $messages[] = $message;
             } catch (Exception $e) {
-                file_put_contents(__DIR__ . '/../general_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+                self::$logger->error($e->getMessage());
             }
         }
         return $messages;
@@ -212,7 +218,7 @@ class DB
             $stmt->bindValue(':word_id', $wordId, PDO::PARAM_INT);
             return $stmt->execute();
         } catch (PDOException $e) {
-            file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+            self::$logger->error($e->getMessage());
         }
         return false;
     }
@@ -235,7 +241,7 @@ class DB
             $stmt->execute();
             return $stmt->fetch();
         } catch (PDOException $e) {
-            file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+            self::$logger->error($e->getMessage());
         }
         return [];
     }
@@ -260,10 +266,7 @@ class DB
             $stmt->execute();
             return $newUser;
         } catch (PDOException|Exception $e) {
-            if($e instanceof PDOException) {
-                file_put_contents(__DIR__ . '/../pdo_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
-            }
-            file_put_contents(__DIR__ . '/../general_error_log', time() . ' : ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+            self::$logger->error($e->getMessage());
         }
         return null;
     }
