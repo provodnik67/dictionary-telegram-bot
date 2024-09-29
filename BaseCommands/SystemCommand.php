@@ -21,6 +21,7 @@ class SystemCommand extends BaseCommandSystem
 
     /**
      * @todo сделать возможность того, что переводчик инициализировался некорректно, например из-за отсутствия файла с переводами
+     * @todo добавить команду типа CallbackQuery, которая бы снимала флаг shown с отображаемого в чате слова
      */
     public function __construct(Telegram $telegram, ?Update $update = null)
     {

@@ -26,6 +26,7 @@ class CallbackqueryCommand extends SystemCommand
     protected $version = '1.0.0';
 
     /**
+     * @todo Добавить в сообщения пользователю, что именно сделано (подробно)
      * @throws Exception
      */
     public function execute(): ServerResponse
