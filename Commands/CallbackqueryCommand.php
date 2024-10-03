@@ -26,7 +26,6 @@ class CallbackqueryCommand extends SystemCommand
     protected $version = '1.0.0';
 
     /**
-     * @todo Добавить в сообщения пользователю, что именно сделано (подробно)
      * @throws Exception
      */
     public function execute(): ServerResponse
@@ -36,7 +35,7 @@ class CallbackqueryCommand extends SystemCommand
         if (preg_match_all('/^toggleComplicated:(\d+)/', $callback_data, $matches, PREG_SET_ORDER)) {
             $toggleResult = DB::toggleComplicated((int)$matches[0][1]);
             return $callback_query->answer([
-                                               'text'       => $toggleResult ? $this->getTranslator()->trans('Done') : $this->getTranslator()->trans('Error'),
+                                               'text'       => is_null($toggleResult) ? $this->getTranslator()->trans('Error') : $this->getTranslator()->trans($toggleResult),
                                                'show_alert' => true,
                                                'cache_time' => 0,
                                            ]);

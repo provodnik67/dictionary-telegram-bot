@@ -208,15 +208,23 @@ class DB
         return $messages;
     }
 
-    public static function toggleComplicated(int $wordId): bool
+    public static function toggleComplicated(int $wordId): ?string
     {
         if (!self::isDbConnected()) {
             return false;
         }
         try {
+            $stmt = self::$pdo->prepare(sprintf('SELECT * FROM `%s` WHERE id = :word_id', self::CARDS));
+            $stmt->bindValue(':word_id', $wordId, PDO::PARAM_INT);
+            $stmt->execute();
+            $data = $stmt->fetch();
+            if(!$data) {
+                return null;
+            }
             $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET `complicated` = !complicated, `shown` = false WHERE id = :word_id', self::CARDS));
             $stmt->bindValue(':word_id', $wordId, PDO::PARAM_INT);
-            return $stmt->execute();
+            $stmt->execute();
+            return $data['complicated'] ? 'Word is removed from complicated.' : 'Word is added to complicated.';
         } catch (PDOException $e) {
             self::$logger->error($e->getMessage());
         }
