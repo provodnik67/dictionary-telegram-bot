@@ -1,4 +1,5 @@
 Error: Ошибка
+Done: Готово
 Your dictionary is empty. Use the command !add.: Ваш словарь пуст. Используйте команду !add
 Your complicated dictionary is empty.: Ваш словарь сложных слов пуст.
 Word was successfully added.: Слово успешно добавлено
@@ -18,3 +19,4 @@ Complicated shown -: Сложные просмотренные -
 Sorry, your account is banned.: Простите, ваш аккаунт заблокирован.
 Word is removed from complicated.: Слово удалено из сложных
 Word is added to complicated.: Слово добавлено в сложные
+Reset shown: Не просмотрено

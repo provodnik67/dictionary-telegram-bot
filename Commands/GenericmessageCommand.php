@@ -103,7 +103,18 @@ class GenericmessageCommand extends SystemCommand
         }
         /** @var Message $message */
         foreach ($messages as $message) {
-            $inline_keyboard = new InlineKeyboard([['text' => $message->isComplicated() ? $this->getTranslator()->trans('Exclude from complicated') : $this->getTranslator()->trans('Add to complicated'), 'callback_data' => sprintf('toggleComplicated:%d', $message->getId())]]);
+            $inline_keyboard = new InlineKeyboard(
+                [
+                    [
+                        'text' => $message->isComplicated() ? $this->getTranslator()->trans('Exclude from complicated') : $this->getTranslator()->trans('Add to complicated'),
+                        'callback_data' => sprintf('toggleComplicated:%d', $message->getId())
+                    ],
+                    [
+                        'text' => $this->getTranslator()->trans('Reset shown'),
+                        'callback_data' => sprintf('resetShown:%d', $message->getId())
+                    ]
+                ]
+            );
             try {
                 Request::sendMessage([
                                          'chat_id' => $chatId,

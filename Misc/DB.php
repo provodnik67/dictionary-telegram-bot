@@ -208,27 +208,44 @@ class DB
         return $messages;
     }
 
-    public static function toggleComplicated(int $wordId): ?string
+    public static function toggleComplicated(int $userId, int $wordId): ?bool
     {
         if (!self::isDbConnected()) {
-            return false;
+            return null;
         }
         try {
-            $stmt = self::$pdo->prepare(sprintf('SELECT * FROM `%s` WHERE id = :word_id', self::CARDS));
+            $stmt = self::$pdo->prepare(sprintf('SELECT * FROM `%s` WHERE user_id = :user_id AND id = :word_id', self::CARDS));
             $stmt->bindValue(':word_id', $wordId, PDO::PARAM_INT);
+            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             $stmt->execute();
             $data = $stmt->fetch();
             if(!$data) {
                 return null;
             }
-            $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET `complicated` = !complicated, `shown` = false WHERE id = :word_id', self::CARDS));
+            $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET `complicated` = !complicated, `shown` = false WHERE user_id = :user_id AND id = :word_id', self::CARDS));
             $stmt->bindValue(':word_id', $wordId, PDO::PARAM_INT);
+            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             $stmt->execute();
-            return $data['complicated'] ? 'Word is removed from complicated.' : 'Word is added to complicated.';
+            return (bool)$data['complicated'];
         } catch (PDOException $e) {
             self::$logger->error($e->getMessage());
         }
-        return false;
+        return null;
+    }
+
+    public static function resetShown(int $userId, int $wordId): void
+    {
+        if (!self::isDbConnected()) {
+            return;
+        }
+        try {
+            $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET `shown` = false WHERE user_id = :user_id AND id = :word_id', self::CARDS));
+            $stmt->bindValue(':word_id', $wordId, PDO::PARAM_INT);
+            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            self::$logger->error($e->getMessage());
+        }
     }
 
     public static function getStatistic(int $userId): array
