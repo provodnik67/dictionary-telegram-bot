@@ -19,21 +19,24 @@ class SystemCommand extends BaseCommandSystem
 
     private $logger;
 
-    /**
-     * @todo сделать возможность того, что переводчик инициализировался некорректно, например из-за отсутствия файла с переводами
-     * @todo добавить команду типа CallbackQuery, которая бы снимала флаг shown с отображаемого в чате слова
-     */
     public function __construct(Telegram $telegram, ?Update $update = null)
     {
         $config = Yaml::parseFile(__DIR__ . '/../config.yml');
-        $locale = $config['misc']['locale'] ?? Locale::getDefault();
-        $this->translator = new Translator($locale);
-        $this->translator->addLoader('yaml', new YamlFileLoader());
-        $this->translator->addResource('yaml', __DIR__ . sprintf('/../translations/messages.%s.yml', $locale), $locale);
 
         $this->logger = new Logger('tg_logger');
         $this->logger->pushHandler(new StreamHandler(__DIR__ . '/../tg_error_log', Logger::DEBUG));
         $this->logger->pushHandler(new FirePHPHandler());
+
+        $locale = $config['misc']['locale'] ?? Locale::getDefault();
+        $this->translator = new Translator($locale);
+        $translationSrc = __DIR__ . sprintf('/../translations/messages.%s.yml', $locale);
+        if(file_exists($translationSrc)) {
+            $this->translator->addLoader('yaml', new YamlFileLoader());
+            $this->translator->addResource('yaml', $translationSrc, $locale);
+        }
+        else {
+            $this->logger->error('Translation file not found: ' . $translationSrc);
+        }
         parent::__construct($telegram, $update);
     }
 

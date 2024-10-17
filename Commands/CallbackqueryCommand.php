@@ -50,10 +50,6 @@ class CallbackqueryCommand extends SystemCommand
                     [
                         'text' => !$toggleResult ? $this->getTranslator()->trans('Exclude from complicated') : $this->getTranslator()->trans('Add to complicated'),
                         'callback_data' => sprintf('toggleComplicated:%d', $cardId)
-                    ],
-                    [
-                        'text' => $this->getTranslator()->trans('Reset shown'),
-                        'callback_data' => sprintf('resetShown:%d', $cardId)
                     ]
                 ]
             );
@@ -73,10 +69,11 @@ class CallbackqueryCommand extends SystemCommand
         if (preg_match_all('/^resetShown:(\d+)/', $callback_data, $matches, PREG_SET_ORDER)) {
             $cardId = (int)$matches[0][1];
             DB::resetShown($callback_query->getFrom()->getId(), $cardId);
-            Request::deleteMessage(
+            Request::editMessageReplyMarkup(
                 [
                     'chat_id' => $message->getChat()->getId(),
-                    'message_id' => $message->getMessageId()
+                    'message_id' => $message->getMessageId(),
+                    'reply_markup' => new InlineKeyboard([$message->getReplyMarkup()->getRawData()['inline_keyboard'][0][0]->raw_data])
                 ]
             );
         }
