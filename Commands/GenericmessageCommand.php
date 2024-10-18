@@ -45,6 +45,15 @@ class GenericmessageCommand extends SystemCommand
             return $this->replyToChat($this->getTranslator()->trans('Sorry, your account is banned.'));
         }
 
+        if($message->getReplyToMessage()->getText() === '!add') {
+            if (preg_match_all('/(.+) - (.+)/', $message->getText(), $matches, PREG_SET_ORDER)) {
+                $en = $matches[0][1];
+                $ru = $matches[0][2];
+                DB::insertWord($conversation->getUserId(), $ru, $en);
+                $this->replyToChat($this->getTranslator()->trans('Word was successfully added.'));
+            }
+            return Request::emptyResponse();
+        }
 
         if (is_numeric($message->getText())) {
             $number = (int)$message->getText();
