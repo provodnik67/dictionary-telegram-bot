@@ -6,9 +6,9 @@ Word was successfully added.: Слово успешно добавлено
 Max words count through one output - %d: Максимальное количество слов в одной выдаче - %d
 Exclude from complicated: Убрать из сложных
 Add to complicated: Добавить в сложные
-"To search words in English type: `!en word_in_english`.": "Чтобы искать слова на Английском введите: `!en слово_на_английском`."
-"To search words in Russian type: `!ru word_in_russian`.": "Чтобы искать слова на Русском введите: `!ru слово_на_русском`."
-"To add a word to the dictionary type: `!add word_in_english - word_in_russian`.": "Чтобы добавить слово в словарь введите: `!add слово_на_английском - слово_на_русском`."
+"To search words in English type: `!en word_in_english`. Or you can use the `search_en` command from the bot-menu.": "Чтобы искать слова на Английском введите: `!en слово_на_английском`. Или вы можете использовать команду `search_en` из меню команд бота."
+"To search words in Russian type: `!ru word_in_russian`. Or you can use the `search_ru` command from the bot-menu.": "Чтобы искать слова на Русском введите: `!ru слово_на_русском`. Или вы можете использовать команду `search_ru` из меню команд бота."
+"To add a word to the dictionary type: `!add word_in_english - word_in_russian`. Or you can use the `Add` command from the bot-menu.": "Чтобы добавить слово в словарь введите: `!add слово_на_английском - слово_на_русском`. Или вы можете использовать команду `Add` из меню команд бота."
 "To get random words to learn type: `n`. Where n - number of words. Example: 12.": "Чтобы получить случайный список слов введите: `n`. Где n - количество слов. Пример: 12."
 "To get random complicated words to learn type: `*n`. Where n - number of words. Example: *12.": "Чтобы получить случайный список сложных слов введите: `*n`. Где n - количество слов. Пример: *12."
 No data.: Нет данных
@@ -21,3 +21,5 @@ Word is removed from complicated.: Слово удалено из сложных
 Word is added to complicated.: Слово добавлено в сложные
 Reset shown: Не просмотрено
 Word in English - Russian translation: Слово на английском - перевод на русский
+Type the word or part of the word in Russian: Введите слово или часть слова на русском языке
+Type the word or part of the word in English: Введите слово или часть слова на английском языке
