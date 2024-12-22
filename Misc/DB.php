@@ -171,10 +171,11 @@ class DB
         }
 
         try {
-            $stmt = self::$pdo->prepare(sprintf('INSERT INTO `%s`(`en`, `ru`, `user_id`) VALUES (:en, :ru, :user_id)', self::CARDS));
+            $stmt = self::$pdo->prepare(sprintf('INSERT INTO `%s`(`en`, `ru`, `complicated`, `user_id`) VALUES (:en, :ru, :complicated, :user_id)', self::CARDS));
             $stmt->bindValue(':ru', $word);
             $stmt->bindValue(':en', $translation);
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->bindValue(':complicated', true, PDO::PARAM_BOOL);
             return $stmt->execute();
         } catch (PDOException $e) {
             self::$logger->error($e->getMessage());
