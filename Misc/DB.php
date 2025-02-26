@@ -104,7 +104,7 @@ class DB
         }
     }
 
-    public static function getSpecificNumberOfWords(int $userId, int $number, bool $hard = false): array
+    public static function getSpecificNumberOfWords(int $userId, int $number, bool $hard = false, ?int $categoryId = null): array
     {
         if (!self::isDbConnected()) {
             return [];
@@ -118,12 +118,23 @@ class DB
             self::resetDictionary($userId, $hard);
         }
 
+        $whereStatement = '';
+        if($hard) {
+            $whereStatement .= ' AND complicated = :complicated ';
+        }
+        if($categoryId) {
+            $whereStatement .= ' AND category_id = :category_id ';
+        }
+
         try {
-            $stmt = self::$pdo->prepare(sprintf('SELECT * FROM %s WHERE user_id = :user_id %s AND shown = :shown ORDER BY RAND() LIMIT :limit', self::CARDS, ($hard ? 'AND complicated = :complicated' : '')));
+            $stmt = self::$pdo->prepare(sprintf('SELECT * FROM %s WHERE user_id = :user_id %s AND shown = :shown ORDER BY RAND() LIMIT :limit', self::CARDS, $whereStatement));
             $stmt->bindValue(':limit', $number, PDO::PARAM_INT);
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             if($hard) {
                 $stmt->bindValue(':complicated', true, PDO::PARAM_BOOL);
+            }
+            if($categoryId) {
+                $stmt->bindValue(':category_id', $categoryId, PDO::PARAM_INT);
             }
             $stmt->bindValue(':shown', false, PDO::PARAM_BOOL);
             $stmt->execute();
@@ -138,11 +149,14 @@ class DB
             && ($hard ? $statistics['COMPLICATED'] : $statistics['TOTAL']) >= $number
         ) {
             try {
-                $stmt = self::$pdo->prepare(sprintf('SELECT * FROM %s WHERE user_id = :user_id %s AND id NOT IN (%s) ORDER BY RAND() LIMIT :limit', self::CARDS, ($hard ? 'AND complicated = :complicated' : ''), implode(',', array_map(function (Message $message) { return $message->getId(); }, $messages))));
+                $stmt = self::$pdo->prepare(sprintf('SELECT * FROM %s WHERE user_id = :user_id %s AND id NOT IN (%s) ORDER BY RAND() LIMIT :limit', self::CARDS, $whereStatement, implode(',', array_map(function (Message $message) { return $message->getId(); }, $messages))));
                 $stmt->bindValue(':limit', ($number - count($messages)), PDO::PARAM_INT);
                 $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
                 if($hard) {
                     $stmt->bindValue(':complicated', true, PDO::PARAM_BOOL);
+                }
+                if($categoryId) {
+                    $stmt->bindValue(':category_id', $categoryId, PDO::PARAM_INT);
                 }
                 $stmt->execute();
             } catch (PDOException $e) {

@@ -68,6 +68,23 @@ class GenericmessageCommand extends SystemCommand
 
         // end add-command
 
+        // start searching by category
+        // @todo подумать как в читаемом виде отдавать категорию из бота
+        if (preg_match_all('/^(\d+)-(\d+)/', $message->getText(), $matches, PREG_SET_ORDER)) {
+            if (is_numeric($matches[0][1]) && is_numeric($matches[0][2])) {
+                $categoryId = (int)$matches[0][1];
+                $number = (int)$matches[0][2];
+                $messages = DB::getSpecificNumberOfWords($conversation->getUserId(), min($number, self::MAX_WORDS_NUMBER), false, $categoryId);
+                if (!$messages) {
+                    return $this->replyToChat($this->getTranslator()->trans('Your dictionary is empty.'));
+                }
+                $this->sendWordsToTheChat($conversation->getChatId(), $messages);
+            }
+            return Request::emptyResponse();
+        }
+
+        // end searching by category
+
         // start output specific number of words
 
         if (is_numeric($message->getText())) {
