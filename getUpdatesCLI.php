@@ -1,6 +1,7 @@
 <?php
 
 use Misc\DB;
+use Misc\DeepSeekAPI;
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\FirePHPHandler;
@@ -18,6 +19,7 @@ while ($try--) {
 require __DIR__ . '/vendor/autoload.php';
 //@todo надо весь каталог Misc грузить и модельки все, а не по одной
 require __DIR__ . '/Misc/DB.php';
+require __DIR__ . '/Misc/DeepSeekAPI.php';
 require __DIR__ . '/Model/User.php';
 require __DIR__ . '/Model/Message.php';
 $config = Yaml::parseFile(__DIR__ . '/config.yml');
@@ -30,7 +32,12 @@ try {
 } catch (Exception $e) {
     $pdoLogger->error($e->getMessage());
 }
-
+DeepSeekAPI::initialize(
+    $config['misc']['deep_seek_api_key'],
+    $config['misc']['deep_seek_base_url'],
+    $config['misc']['depp_seek_assistant_prompt'],
+    $pdoLogger
+);
 while ($seconds--) {
     try {
         $telegram = new Longman\TelegramBot\Telegram($config['bot']['api_key'], $config['bot']['username']);

@@ -7,8 +7,10 @@ use BaseCommands\SystemCommand;
 use Exception;
 use Longman\TelegramBot\Entities\InlineKeyboard;
 use Longman\TelegramBot\Entities\ServerResponse;
+use Longman\TelegramBot\Exception\TelegramException;
 use Longman\TelegramBot\Request;
 use Misc\DB;
+use Misc\DeepSeekAPI;
 
 class CallbackqueryCommand extends SystemCommand
 {
@@ -76,6 +78,31 @@ class CallbackqueryCommand extends SystemCommand
                     'reply_markup' => new InlineKeyboard([$message->getReplyMarkup()->getRawData()['inline_keyboard'][0][0]->raw_data])
                 ]
             );
+        }
+        if (preg_match_all('/^context:(\d+)/', $callback_data, $matches, PREG_SET_ORDER)) {
+            $cardId = (int)$matches[0][1];
+            $enWord = DB::getWord($cardId);
+            if(is_null($enWord)){
+                $contextMessage = 'something went wrong';
+            }
+            else {
+                $response = DeepSeekAPI::request(sprintf('Give me five short sentences with the word "%s".', $enWord));
+                if(!empty($response['choices'][0]['message']['content'])) {
+                    $contextMessage = $response['choices'][0]['message']['content'];
+                }
+                else {
+                    $contextMessage = 'Something went wrong';
+                }
+            }
+            try {
+                Request::sendMessage([
+                    'chat_id' => $message->getChat()->getId(),
+                    'text' => $contextMessage,
+                ]);
+            }
+            catch (TelegramException $e) {
+                $this->getLogger()->error($e->getMessage());
+            }
         }
 
         return $callback_query->answer([

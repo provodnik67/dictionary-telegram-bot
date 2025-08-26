@@ -311,4 +311,22 @@ class DB
         }
         return null;
     }
+
+    public static function getWord(int $wordId): ?string
+    {
+        if (!self::isDbConnected()) {
+            return null;
+        }
+        try {
+            $stmt = self::$pdo->prepare(sprintf('SELECT `en` FROM `%s` WHERE id = :word_id', self::CARDS));
+            $stmt->bindValue(':word_id', $wordId, PDO::PARAM_INT);
+            $stmt->execute();
+            if($data = $stmt->fetch()) {
+                return $data['en'];
+            }
+        } catch (PDOException $e) {
+            self::$logger->error($e->getMessage());
+        }
+        return null;
+    }
 }

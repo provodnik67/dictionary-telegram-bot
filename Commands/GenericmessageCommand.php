@@ -172,6 +172,10 @@ class GenericmessageCommand extends SystemCommand
             $inline_keyboard = new InlineKeyboard(
                 [
                     [
+                        'text' => $this->getTranslator()->trans('Context'),
+                        'callback_data' => sprintf('context:%d', $message->getId())
+                    ],
+                    [
                         'text' => $message->isComplicated() ? $this->getTranslator()->trans('Exclude from complicated') : $this->getTranslator()->trans('Add to complicated'),
                         'callback_data' => sprintf('toggleComplicated:%d', $message->getId())
                     ],
