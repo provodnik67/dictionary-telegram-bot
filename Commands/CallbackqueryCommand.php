@@ -50,6 +50,10 @@ class CallbackqueryCommand extends SystemCommand
             $inline_keyboard = new InlineKeyboard(
                 [
                     [
+                        'text' => $this->getTranslator()->trans('Context'),
+                        'callback_data' => sprintf('context:%d', $cardId)
+                    ],
+                    [
                         'text' => !$toggleResult ? $this->getTranslator()->trans('Exclude from complicated') : $this->getTranslator()->trans('Add to complicated'),
                         'callback_data' => sprintf('toggleComplicated:%d', $cardId)
                     ]
@@ -75,7 +79,12 @@ class CallbackqueryCommand extends SystemCommand
                 [
                     'chat_id' => $message->getChat()->getId(),
                     'message_id' => $message->getMessageId(),
-                    'reply_markup' => new InlineKeyboard([$message->getReplyMarkup()->getRawData()['inline_keyboard'][0][0]->raw_data])
+                    'reply_markup' => new InlineKeyboard(
+                        [
+                            $message->getReplyMarkup()->getRawData()['inline_keyboard'][0][0]->raw_data,
+                            $message->getReplyMarkup()->getRawData()['inline_keyboard'][0][1]->raw_data
+                        ]
+                    )
                 ]
             );
         }
