@@ -31,6 +31,19 @@ class GenericmessageCommand extends SystemCommand
     private const MAX_WORDS_NUMBER = 20;
 
     /**
+     * @throws TelegramException
+     */
+    private function cleanReplyToChat(int $chatId, string $textToSend): ServerResponse
+    {
+        return Request::sendMessage(
+            [
+                'chat_id' => $chatId,
+                'text' => $textToSend,
+                'reply_markup' => ['remove_keyboard' => true]
+            ]);
+    }
+
+    /**
      * @todo склеить методы текстового выполнения команд и выполнения через forceReply
      * @todo возможно уже создать каталог subcommand и выносить функционал туда: имплементировать собственные классы или экстендить вендорные команды
      * @throws TelegramException
@@ -44,7 +57,7 @@ class GenericmessageCommand extends SystemCommand
         );
         $user = DB::getOrCreateUser($conversation->getUserId());
         if($user && $user->isBanned()) {
-            return $this->replyToChat($this->getTranslator()->trans('Sorry, your account is banned.'));
+            return $this->cleanReplyToChat($conversation->getChatId(), $this->getTranslator()->trans('Sorry, your account is banned.'));
         }
 
         // start add-command
@@ -54,7 +67,7 @@ class GenericmessageCommand extends SystemCommand
                 $en = $matches[0][1];
                 $ru = $matches[0][2];
                 DB::insertWord($conversation->getUserId(), $ru, $en);
-                return $this->replyToChat($this->getTranslator()->trans('Word was successfully added.'));
+                return $this->cleanReplyToChat($conversation->getChatId(), $this->getTranslator()->trans('Word was successfully added.'));
             }
             return Request::emptyResponse();
         }
@@ -63,7 +76,7 @@ class GenericmessageCommand extends SystemCommand
             $en = $matches[0][1];
             $ru = $matches[0][2];
             DB::insertWord($conversation->getUserId(), $ru, $en);
-            return $this->replyToChat($this->getTranslator()->trans('Word was successfully added.'));
+            return $this->cleanReplyToChat($conversation->getChatId(), $this->getTranslator()->trans('Word was successfully added.'));
         }
 
         // end add-command
@@ -76,7 +89,7 @@ class GenericmessageCommand extends SystemCommand
                 $number = (int)$matches[0][2];
                 $messages = DB::getSpecificNumberOfWords($conversation->getUserId(), min($number, self::MAX_WORDS_NUMBER), false, $categoryId);
                 if (!$messages) {
-                    return $this->replyToChat($this->getTranslator()->trans('Your dictionary is empty.'));
+                    return $this->cleanReplyToChat($conversation->getChatId(), $this->getTranslator()->trans('Your dictionary is empty.'));
                 }
                 $this->sendWordsToTheChat($conversation->getChatId(), $messages);
             }
@@ -91,7 +104,7 @@ class GenericmessageCommand extends SystemCommand
             $number = (int)$message->getText();
             $messages = DB::getSpecificNumberOfWords($conversation->getUserId(), min($number, self::MAX_WORDS_NUMBER));
             if (!$messages) {
-                return $this->replyToChat($this->getTranslator()->trans('Your dictionary is empty. Use the command !add.'));
+                return $this->cleanReplyToChat($conversation->getChatId(), $this->getTranslator()->trans('Your dictionary is empty. Use the command !add.'));
             }
             $this->sendWordsToTheChat($conversation->getChatId(), $messages);
             return Request::emptyResponse();
@@ -106,7 +119,7 @@ class GenericmessageCommand extends SystemCommand
                 $number = (int)$matches[0][1];
                 $messages = DB::getSpecificNumberOfWords($conversation->getUserId(), min($number, self::MAX_WORDS_NUMBER), true);
                 if (!$messages) {
-                    return $this->replyToChat($this->getTranslator()->trans('Your complicated dictionary is empty.'));
+                    return $this->cleanReplyToChat($conversation->getChatId(), $this->getTranslator()->trans('Your complicated dictionary is empty.'));
                 }
                 $this->sendWordsToTheChat($conversation->getChatId(), $messages);
             }
@@ -161,7 +174,8 @@ class GenericmessageCommand extends SystemCommand
                 Request::sendMessage([
                                          'chat_id' => $chatId,
                                          'text' => sprintf($this->getTranslator()->trans('Max words count through one output - %d'), self::MAX_WORDS_NUMBER),
-                                     ]);
+                                         'reply_markup' => ['remove_keyboard' => true]
+                ]);
             }
             catch (TelegramException $e) {
                 $this->getLogger()->error($e->getMessage());
