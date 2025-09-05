@@ -95,7 +95,7 @@ class CallbackqueryCommand extends SystemCommand
                 $contextMessage = 'something went wrong';
             }
             else {
-                $response = DeepSeekAPI::request(sprintf('Give me five short sentences with the word "%s".', $enWord));
+                $response = DeepSeekAPI::request(sprintf('Give me five short sentences with the word "%s". The list has to be with numbers.', $enWord));
                 if(!empty($response['choices'][0]['message']['content'])) {
                     $contextMessage = $response['choices'][0]['message']['content'];
                 }

@@ -3,19 +3,34 @@
 namespace Misc;
 
 use Monolog\Logger;
+use TypeError;
 
 class DeepSeekAPI
 {
     private static string $apiKey;
     private static string $baseUrl;
-    private static string $assistantPrompt;
+    private static array $assistantPrompt;
     private static Logger $logger;
-    public static function initialize(string $apiKey, string $baseUrl, string $assistantPrompt, Logger $logger): void
+    public static function initialize(string $apiKey, string $baseUrl, $assistantPrompt, Logger $logger): void
     {
+        if(!is_string($assistantPrompt) && !is_array($assistantPrompt)) {
+            $error = 'Expected a string or an array in the $assistantPrompt, got ' . gettype($assistantPrompt);
+            self::$logger->error($error);
+            throw new TypeError($error);
+        }
         self::$apiKey = $apiKey;
         self::$baseUrl = $baseUrl;
         self::$logger = $logger;
-        self::$assistantPrompt = $assistantPrompt;
+        self::$assistantPrompt = is_string($assistantPrompt) ? [$assistantPrompt] : $assistantPrompt;
+    }
+
+    private static function getAssistantPromptMessage(): string
+    {
+        $count = count(self::$assistantPrompt);
+        if($count === 1) {
+            return self::$assistantPrompt[0];
+        }
+        return self::$assistantPrompt[rand(0, $count - 1)];
     }
 
     public static function request(string $message): ?array
@@ -24,7 +39,7 @@ class DeepSeekAPI
         $data = [
             'model' => 'deepseek-chat',
             'messages' => [
-                ['role' => 'system', 'content' => self::$assistantPrompt],
+                ['role' => 'system', 'content' => self::getAssistantPromptMessage()],
                 ['role' => 'user', 'content' => $message]
             ],
             'stream' => false
