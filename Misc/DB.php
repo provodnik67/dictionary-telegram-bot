@@ -10,6 +10,7 @@ use Monolog\Logger;
 use PDO;
 use PDOException;
 use PDOStatement;
+use RuntimeException;
 
 /**
  * @todo argument user_id in the most of methods, exclude it
@@ -19,6 +20,8 @@ class DB
     private const CARDS = 'cards';
 
     private const USERS = 'dictionary_user';
+
+    private const COMMAND_IN_PROCESS = 'command_in_process';
 
     /**
      * @var array
@@ -38,7 +41,8 @@ class DB
     /**
      * @throws Exception
      */
-    public static function initialize(array $credentials, $encoding = 'utf8', int $errMode = PDO::ERRMODE_WARNING, Logger $logger): PDO {
+    public static function initialize(array $credentials, $encoding = 'utf8', int $errMode = PDO::ERRMODE_WARNING, Logger $logger): PDO
+    {
         if (empty($credentials)) {
             throw new Exception('MySQL credentials not provided!');
         }
@@ -90,7 +94,7 @@ class DB
         return $messages;
     }
 
-    private static function resetDictionary(int $userId, bool $hard)
+    private static function resetDictionary(int $userId, bool $hard): void
     {
         try {
             $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET shown = false WHERE user_id = :user_id %s', self::CARDS, ($hard ? 'AND complicated = :complicated' : '')));
@@ -328,5 +332,36 @@ class DB
             self::$logger->error($e->getMessage());
         }
         return null;
+    }
+
+    public static function isCommandInProcess(int $userId): bool
+    {
+        if (!self::isDbConnected()) {
+            throw new RuntimeException("Database connection failed");
+        }
+        try {
+            $stmt = self::$pdo->prepare(sprintf('SELECT `id` from `%s` where user_id = :user_id', self::COMMAND_IN_PROCESS));
+            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->execute();
+            return count($stmt->fetchAll()) > 0;
+        } catch (PDOException $e) {
+            self::$logger->error($e->getMessage());
+        }
+        return true;
+    }
+
+    public static function addCommandInProcess(int $userId): void
+    {
+        if (!self::isDbConnected()) {
+            throw new RuntimeException("Database connection failed");
+        }
+        try {
+            $stmt = self::$pdo->prepare(sprintf('INSERT INTO `%s`(`created`, `user_id`) VALUES (:created, :user_id)', self::COMMAND_IN_PROCESS));
+            $stmt->bindValue(':created', (new DateTime())->format('Y-m-d H:i:s'));
+            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            self::$logger->error($e->getMessage());
+        }
     }
 }

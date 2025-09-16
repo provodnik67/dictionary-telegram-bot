@@ -4,8 +4,11 @@ namespace BaseCommands;
 
 use Locale;
 use Longman\TelegramBot\Commands\SystemCommand as BaseCommandSystem;
+use Longman\TelegramBot\Entities\ServerResponse;
 use Longman\TelegramBot\Entities\Update;
+use Longman\TelegramBot\Request;
 use Longman\TelegramBot\Telegram;
+use Misc\DB;
 use Monolog\Handler\FirePHPHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
@@ -48,5 +51,17 @@ class SystemCommand extends BaseCommandSystem
     public function getLogger(): Logger
     {
         return $this->logger;
+    }
+
+    public function preExecute(): ServerResponse
+    {
+        $message = $this->getMessage();
+        if ($user = $message->getFrom()) {
+            if(DB::isCommandInProcess($user->getId())) {
+                return Request::emptyResponse();
+            }
+            DB::addCommandInProcess($user->getId());
+        }
+        return parent::preExecute();
     }
 }
