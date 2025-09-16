@@ -60,6 +60,7 @@ class SystemCommand extends BaseCommandSystem
             if(DB::isCommandInProcess($user->getId())) {
                 return Request::emptyResponse();
             }
+            //@todo добавить автоматическую очистку таблицы спустя некоторое время
             DB::addCommandInProcess($user->getId());
         }
         return parent::preExecute();
