@@ -6,6 +6,7 @@ use Locale;
 use Longman\TelegramBot\Commands\SystemCommand as BaseCommandSystem;
 use Longman\TelegramBot\Entities\ServerResponse;
 use Longman\TelegramBot\Entities\Update;
+use Longman\TelegramBot\Exception\TelegramException;
 use Longman\TelegramBot\Request;
 use Longman\TelegramBot\Telegram;
 use Misc\DB;
@@ -53,10 +54,14 @@ class SystemCommand extends BaseCommandSystem
         return $this->logger;
     }
 
+    /**
+     * @throws TelegramException
+     * @todo hotfix для команд с обратным вызовом Commands/CallbackqueryCommand.php, подумать нужно ли делать блок для таких команд
+     */
     public function preExecute(): ServerResponse
     {
         $message = $this->getMessage();
-        $user = $message->getFrom();
+        $user = $message?->getFrom();
         if ($user) {
             if(DB::isCommandInProcess($user->getId())) {
                 return Request::emptyResponse();
