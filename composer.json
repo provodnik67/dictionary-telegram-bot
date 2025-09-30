@@ -4,6 +4,8 @@
         "symfony/yaml": "^5.4",
         "symfony/translation": "^5.4",
         "monolog/monolog": "^2.9",
-        "ext-curl": "*"
+        "ext-curl": "*",
+        "ext-pdo": "*",
+        "ext-intl": "*"
     }
 }
