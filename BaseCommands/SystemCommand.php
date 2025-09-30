@@ -18,9 +18,9 @@ use Symfony\Component\Yaml\Yaml;
 
 class SystemCommand extends BaseCommandSystem
 {
-    private $translator;
+    private ?Translator $translator;
 
-    private $logger;
+    private ?Logger $logger;
 
     public function __construct(Telegram $telegram, ?Update $update = null)
     {
@@ -56,13 +56,17 @@ class SystemCommand extends BaseCommandSystem
     public function preExecute(): ServerResponse
     {
         $message = $this->getMessage();
-        if ($user = $message->getFrom()) {
+        $user = $message->getFrom();
+        if ($user) {
             if(DB::isCommandInProcess($user->getId())) {
                 return Request::emptyResponse();
             }
-            //@todo добавить автоматическую очистку таблицы спустя некоторое время
             DB::addCommandInProcess($user->getId());
         }
-        return parent::preExecute();
+        $executionResult = parent::preExecute();
+        if ($user) {
+            DB::removeCommandInProcess($user->getId());
+        }
+        return $executionResult;
     }
 }
