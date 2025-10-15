@@ -56,12 +56,15 @@ class SystemCommand extends BaseCommandSystem
 
     /**
      * @throws TelegramException
-     * @todo hotfix для команд с обратным вызовом Commands/CallbackqueryCommand.php, подумать нужно ли делать блок для таких команд
      */
     public function preExecute(): ServerResponse
     {
         $message = $this->getMessage();
         $user = $message?->getFrom();
+        if (!$user) {
+            $callback_query = $this->getCallbackQuery();
+            $user = $callback_query?->getFrom();
+        }
         if ($user) {
             if(DB::isCommandInProcess($user->getId())) {
                 return Request::emptyResponse();
