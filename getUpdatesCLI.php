@@ -36,7 +36,7 @@ DeepSeekAPI::initialize(
     $config['misc']['deep_seek_api_key'],
     $config['misc']['deep_seek_base_url'],
     $config['misc']['depp_seek_assistant_prompt'],
-    $pdoLogger
+    $pdoLogger // @todo наверно свои логи надо вести, а не pdo
 );
 while ($seconds--) {
     try {
