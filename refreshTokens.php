@@ -5,6 +5,7 @@ use Monolog\Handler\StreamHandler;
 use Monolog\Handler\FirePHPHandler;
 use Symfony\Component\Yaml\Yaml;
 require __DIR__ . '/vendor/autoload.php';
+require __DIR__ . '/Misc/DB.php';
 $config = Yaml::parseFile(__DIR__ . '/config.yml');
 if(empty($config['misc']['auth_token']) || empty($config['misc']['auth_url'])) {
     die;
@@ -23,7 +24,8 @@ $tokenLogger->pushHandler(new FirePHPHandler());
 /**
  * @throws Exception
  */
-function getIAMToken($oauthToken, $url) {
+function getIAMToken($oauthToken, $url)
+{
     $data = json_encode([
         'yandexPassportOauthToken' => $oauthToken
     ]);
@@ -44,9 +46,35 @@ function getIAMToken($oauthToken, $url) {
     }
     return json_decode($response, true);
 }
+/**
+ * @throws Exception
+ */
+function revokeIAMToken($oldToken, $url): void
+{
+    $data = json_encode([
+        'iamToken' => $oldToken
+    ]);
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, sprintf('%s:revoke', $url));
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json',
+        'Content-Length: ' . strlen($data),
+        'Authorization: Bearer ' . $oldToken
+    ]);
+    curl_exec($ch);
+    curl_close($ch);
+}
 try {
-    // @todo записать в базу IAM токен, использовать для конкретного пользователя, либо завести таблицу настроек
+    if($oldToken = DB::getToken()) {
+        revokeIAMToken($oldToken, $config['misc']['auth_url']);
+    }
     $result = getIAMToken($config['misc']['auth_token'], $config['misc']['auth_url']);
+    if(!empty($result['iamToken'])) {
+        DB::refreshToken($result['iamToken']);
+    }
 } catch (Exception $e) {
     $tokenLogger->error($e->getMessage());
 }

@@ -91,7 +91,7 @@ class CallbackqueryCommand extends SystemCommand
         if (preg_match_all('/^context:(\d+)/', $callback_data, $matches, PREG_SET_ORDER)) {
             $cardId = (int)$matches[0][1];
             $enWord = DB::getWord($cardId);
-            if(is_null($enWord)){
+            if(is_null($enWord) || !DeepSeekAPI::isInitialized()) {
                 $contextMessage = 'something went wrong';
             }
             else {
