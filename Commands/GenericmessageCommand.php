@@ -10,6 +10,7 @@ use Longman\TelegramBot\Entities\ServerResponse;
 use Longman\TelegramBot\Exception\TelegramException;
 use Longman\TelegramBot\Request;
 use Model\Message;
+use Model\User;
 
 class GenericmessageCommand extends SystemCommand
 {
@@ -56,7 +57,11 @@ class GenericmessageCommand extends SystemCommand
             $message->getChat()->getId()
         );
         $user = DB::getOrCreateUser($conversation->getUserId());
-        if($user && $user->isBanned()) {
+        if(!$user instanceof User) {
+            $this->getLogger()->error(sprintf('Impossible to create user %d.', $conversation->getUserId()));
+            return Request::emptyResponse();
+        }
+        if($user->isBanned()) {
             return $this->cleanReplyToChat($conversation->getChatId(), $this->getTranslator()->trans('Sorry, your account is banned.'));
         }
 
@@ -91,7 +96,7 @@ class GenericmessageCommand extends SystemCommand
                 if (!$messages) {
                     return $this->cleanReplyToChat($conversation->getChatId(), $this->getTranslator()->trans('Your dictionary is empty.'));
                 }
-                $this->sendWordsToTheChat($conversation->getChatId(), $messages);
+                $this->sendWordsToTheChat($conversation->getChatId(), $messages, $user);
             }
             return Request::emptyResponse();
         }
@@ -106,7 +111,7 @@ class GenericmessageCommand extends SystemCommand
             if (!$messages) {
                 return $this->cleanReplyToChat($conversation->getChatId(), $this->getTranslator()->trans('Your dictionary is empty. Use the command !add.'));
             }
-            $this->sendWordsToTheChat($conversation->getChatId(), $messages);
+            $this->sendWordsToTheChat($conversation->getChatId(), $messages, $user);
             return Request::emptyResponse();
         }
 
@@ -121,7 +126,7 @@ class GenericmessageCommand extends SystemCommand
                 if (!$messages) {
                     return $this->cleanReplyToChat($conversation->getChatId(), $this->getTranslator()->trans('Your complicated dictionary is empty.'));
                 }
-                $this->sendWordsToTheChat($conversation->getChatId(), $messages);
+                $this->sendWordsToTheChat($conversation->getChatId(), $messages, $user);
             }
             return Request::emptyResponse();
         }
@@ -133,14 +138,14 @@ class GenericmessageCommand extends SystemCommand
         if($message->getReplyToMessage() && $message->getReplyToMessage()->getText() === '!ru') {
             $search = $message->getText();
             $messages = DB::simpleSearch($conversation->getUserId(), $search, 'ru');
-            $this->sendWordsToTheChat($conversation->getChatId(), $messages, false);
+            $this->sendWordsToTheChat($conversation->getChatId(), $messages, $user, false);
             return Request::emptyResponse();
         }
 
         if (preg_match_all('/^!ru (.+)/', $message->getText(), $matches, PREG_SET_ORDER)) {
             $search = $matches[0][1];
             $messages = DB::simpleSearch($conversation->getUserId(), $search, 'ru');
-            $this->sendWordsToTheChat($conversation->getChatId(), $messages, false);
+            $this->sendWordsToTheChat($conversation->getChatId(), $messages, $user, false);
             return Request::emptyResponse();
         }
 
@@ -151,14 +156,14 @@ class GenericmessageCommand extends SystemCommand
         if($message->getReplyToMessage() && $message->getReplyToMessage()->getText() === '!en') {
             $search = $message->getText();
             $messages = DB::simpleSearch($conversation->getUserId(), $search, 'en');
-            $this->sendWordsToTheChat($conversation->getChatId(), $messages, false);
+            $this->sendWordsToTheChat($conversation->getChatId(), $messages, $user, false);
             return Request::emptyResponse();
         }
 
         if (preg_match_all('/^!en (.+)/', $message->getText(), $matches, PREG_SET_ORDER)) {
             $search = $matches[0][1];
             $messages = DB::simpleSearch($conversation->getUserId(), $search, 'en');
-            $this->sendWordsToTheChat($conversation->getChatId(), $messages, false);
+            $this->sendWordsToTheChat($conversation->getChatId(), $messages, $user, false);
             return Request::emptyResponse();
         }
 
@@ -167,7 +172,7 @@ class GenericmessageCommand extends SystemCommand
         return Request::emptyResponse();
     }
 
-    private function sendWordsToTheChat(int $chatId, array $messages, bool $resetShown = true): void
+    private function sendWordsToTheChat(int $chatId, array $messages, User $user, bool $resetShown = true, ): void
     {
         if (count($messages) === self::MAX_WORDS_NUMBER) {
             try {
@@ -186,16 +191,22 @@ class GenericmessageCommand extends SystemCommand
             $inline_keyboard = new InlineKeyboard(
                 [
                     [
-                        'text' => $this->getTranslator()->trans('Context'),
-                        'callback_data' => sprintf('context:%d', $message->getId())
-                    ],
-                    [
                         'text' => $message->isComplicated() ? $this->getTranslator()->trans('Exclude from complicated') : $this->getTranslator()->trans('Add to complicated'),
                         'callback_data' => sprintf('toggleComplicated:%d', $message->getId())
                     ],
                     $resetShown ? [
                         'text' => $this->getTranslator()->trans('Reset shown'),
                         'callback_data' => sprintf('resetShown:%d', $message->getId())
+                    ] : []
+                ],
+                [
+                    [
+                        'text' => $this->getTranslator()->trans('Context'),
+                        'callback_data' => sprintf('context:%d', $message->getId())
+                    ],
+                    $user->isVoiceMessagesEnabled() ? [
+                        'text' => $this->getTranslator()->trans('Play an audio'),
+                        'callback_data' => sprintf('playAudio:%d', $message->getId())
                     ] : []
                 ]
             );

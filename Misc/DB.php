@@ -297,7 +297,7 @@ class DB
         return [];
     }
 
-    public static function getOrCreateUser(int $userId): ?User
+    public static function getOrCreateUser(int $userId, bool $forceGet = false): ?User
     {
         if (!self::isDbConnected()) {
             return null;
@@ -309,11 +309,15 @@ class DB
             if($data = $stmt->fetch()) {
                 return User::factory($data);
             }
-            $newUser = User::factory(['id' => $userId, 'created' => new DateTime(), 'banned' => false]);
-            $stmt = self::$pdo->prepare(sprintf('INSERT INTO `%s`(`id`, `created`, `banned`) VALUES (:id, :created, :banned)', self::USERS));
+            if($forceGet) {
+                return null;
+            }
+            $newUser = User::factory(['id' => $userId, 'created' => new DateTime(), 'banned' => false, 'voice_messages_enabled' => false]);
+            $stmt = self::$pdo->prepare(sprintf('INSERT INTO `%s`(`id`, `created`, `banned`, `voice_messages_enabled`) VALUES (:id, :created, :banned, :voice_messages_enabled)', self::USERS));
             $stmt->bindValue(':id', $userId, PDO::PARAM_INT);
             $stmt->bindValue(':created', $newUser->getCreated()->format('Y-m-d H:i:s'));
             $stmt->bindValue(':banned', $newUser->isBanned(), PDO::PARAM_BOOL);
+            $stmt->bindValue(':voice_messages_enabled', $newUser->isVoiceMessagesEnabled(), PDO::PARAM_BOOL);
             $stmt->execute();
             return $newUser;
         } catch (PDOException|Exception $e) {

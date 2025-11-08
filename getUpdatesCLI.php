@@ -49,7 +49,8 @@ if(
 }
 if(
     !empty($config['misc']['speech_kit']['folder_id']) &&
-    !empty($config['misc']['speech_kit']['url'])
+    !empty($config['misc']['speech_kit']['url']) &&
+    !empty($config['misc']['speech_kit']['cache_folder'])
 ) {
     if($iamToken = DB::getToken()) {
         $speechKitLogger = new Logger('speech_kit_logger');
@@ -59,12 +60,10 @@ if(
             $speechKitLogger,
             $iamToken,
             $config['misc']['speech_kit']['url'],
-            $config['misc']['speech_kit']['folder_id']
+            $config['misc']['speech_kit']['folder_id'],
+            $config['misc']['speech_kit']['cache_folder']
         );
     }
-}
-if(SpeechKitAPI::isInitialized()) {
-    // @todo реализовать в командах для озвучивания
 }
 while ($seconds--) {
     try {
