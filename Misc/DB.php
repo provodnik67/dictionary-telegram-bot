@@ -20,6 +20,8 @@ class DB
 
     private const COMMAND_IN_PROCESS = 'command_in_process';
 
+    private const SETTINGS = 'dictionary_settings';
+
     protected static array $mysql_credentials = [];
 
     protected static PDO $pdo;
@@ -295,7 +297,7 @@ class DB
         return [];
     }
 
-    public static function getOrCreateUser(int $userId): ?User
+    public static function getOrCreateUser(int $userId, bool $forceGet = false): ?User
     {
         if (!self::isDbConnected()) {
             return null;
@@ -307,11 +309,15 @@ class DB
             if($data = $stmt->fetch()) {
                 return User::factory($data);
             }
-            $newUser = User::factory(['id' => $userId, 'created' => new DateTime(), 'banned' => false]);
-            $stmt = self::$pdo->prepare(sprintf('INSERT INTO `%s`(`id`, `created`, `banned`) VALUES (:id, :created, :banned)', self::USERS));
+            if($forceGet) {
+                return null;
+            }
+            $newUser = User::factory(['id' => $userId, 'created' => new DateTime(), 'banned' => false, 'voice_messages_enabled' => false]);
+            $stmt = self::$pdo->prepare(sprintf('INSERT INTO `%s`(`id`, `created`, `banned`, `voice_messages_enabled`) VALUES (:id, :created, :banned, :voice_messages_enabled)', self::USERS));
             $stmt->bindValue(':id', $userId, PDO::PARAM_INT);
             $stmt->bindValue(':created', $newUser->getCreated()->format('Y-m-d H:i:s'));
             $stmt->bindValue(':banned', $newUser->isBanned(), PDO::PARAM_BOOL);
+            $stmt->bindValue(':voice_messages_enabled', $newUser->isVoiceMessagesEnabled(), PDO::PARAM_BOOL);
             $stmt->execute();
             return $newUser;
         } catch (PDOException|Exception $e) {
@@ -377,6 +383,35 @@ class DB
         try {
             $stmt = self::$pdo->prepare(sprintf('DELETE FROM `%s` WHERE user_id = :user_id', self::COMMAND_IN_PROCESS));
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            self::$logger->error($e->getMessage());
+        }
+    }
+
+    public static function getToken(): ?string
+    {
+        if (!self::isDbConnected()) {
+            return null;
+        }
+        try {
+            $stmt = self::$pdo->prepare(sprintf('SELECT iam_token FROM `%s`', self::SETTINGS));
+            $stmt->execute();
+            if($data = $stmt->fetch()) {
+                return $data['iam_token'];
+            }
+            return null;
+        } catch (PDOException|Exception $e) {
+            self::$logger->error($e->getMessage());
+        }
+        return null;
+    }
+
+    public static function refreshToken(string $token): void
+    {
+        try {
+            $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET iam_token = :token', self::SETTINGS));
+            $stmt->bindValue(':token', $token);
             $stmt->execute();
         } catch (PDOException $e) {
             self::$logger->error($e->getMessage());

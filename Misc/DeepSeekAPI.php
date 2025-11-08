@@ -11,6 +11,7 @@ class DeepSeekAPI
     private static string $baseUrl;
     private static array $assistantPrompt;
     private static Logger $logger;
+    private static bool $isInitialized = false;
     public static function initialize(string $apiKey, string $baseUrl, $assistantPrompt, Logger $logger): void
     {
         if(!is_string($assistantPrompt) && !is_array($assistantPrompt)) {
@@ -22,6 +23,12 @@ class DeepSeekAPI
         self::$baseUrl = $baseUrl;
         self::$logger = $logger;
         self::$assistantPrompt = is_string($assistantPrompt) ? [$assistantPrompt] : $assistantPrompt;
+        self::$isInitialized = true;
+    }
+
+    public static function isInitialized(): bool
+    {
+        return self::$isInitialized;
     }
 
     private static function getAssistantPromptMessage(): string

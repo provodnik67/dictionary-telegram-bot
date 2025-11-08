@@ -11,6 +11,7 @@ use Longman\TelegramBot\Exception\TelegramException;
 use Longman\TelegramBot\Request;
 use Misc\DB;
 use Misc\DeepSeekAPI;
+use Misc\SpeechKitAPI;
 
 class CallbackqueryCommand extends SystemCommand
 {
@@ -91,7 +92,7 @@ class CallbackqueryCommand extends SystemCommand
         if (preg_match_all('/^context:(\d+)/', $callback_data, $matches, PREG_SET_ORDER)) {
             $cardId = (int)$matches[0][1];
             $enWord = DB::getWord($cardId);
-            if(is_null($enWord)){
+            if(is_null($enWord) || !DeepSeekAPI::isInitialized()) {
                 $contextMessage = 'something went wrong';
             }
             else {
@@ -112,6 +113,29 @@ class CallbackqueryCommand extends SystemCommand
             catch (TelegramException $e) {
                 $this->getLogger()->error($e->getMessage());
             }
+        }
+        if (preg_match_all('/^playAudio:(\d+)/', $callback_data, $matches, PREG_SET_ORDER)) {
+            $cardId = (int)$matches[0][1];
+            $enWord = DB::getWord($cardId);
+            $callback_query = $this->getCallbackQuery();
+            $user = $callback_query?->getFrom();
+            if(is_null($enWord) || !SpeechKitAPI::isInitialized()) {
+                return $callback_query->answer([
+                    'show_alert' => false
+                ]);
+            }
+            $oggPath = SpeechKitAPI::textToSpeech($enWord, $user->getId(), $cardId);
+            if(is_null($oggPath)) {
+                return $callback_query->answer([
+                    'show_alert' => false
+                ]);
+            }
+            Request::sendVoice(
+                [
+                    'chat_id' => $message->getChat()->getId(),
+                    'voice' => $oggPath
+                ]
+            );
         }
 
         return $callback_query->answer([
