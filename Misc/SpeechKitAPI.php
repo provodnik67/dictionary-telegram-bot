@@ -34,7 +34,6 @@ class SpeechKitAPI
         return self::$isInitialized;
     }
 
-    // @todo проверить и отрефакторить
     public static function textToSpeech(string $message, int $userId, int $cardId): ?string
     {
         if(!file_exists(self::$cacheFolder)) {

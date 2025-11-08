@@ -125,7 +125,7 @@ class CallbackqueryCommand extends SystemCommand
                 ]);
             }
             $oggPath = SpeechKitAPI::textToSpeech($enWord, $user->getId(), $cardId);
-            if(!$oggPath) {
+            if(is_null($oggPath)) {
                 return $callback_query->answer([
                     'show_alert' => false
                 ]);
