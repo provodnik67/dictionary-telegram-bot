@@ -12,6 +12,8 @@ use Longman\TelegramBot\Request;
 use Misc\DB;
 use Misc\DeepSeekAPI;
 use Misc\SpeechKitAPI;
+use Model\Message;
+use Model\User;
 
 class CallbackqueryCommand extends SystemCommand
 {
@@ -38,10 +40,14 @@ class CallbackqueryCommand extends SystemCommand
         $callback_query = $this->getCallbackQuery();
         $callback_data  = $callback_query->getData();
         $message = $callback_query->getMessage();
-        if (preg_match_all('/^toggleComplicated:(\d+)/', $callback_data, $matches, PREG_SET_ORDER)) {
+        $user = DB::getOrCreateUser($callback_query->getFrom()->getId(), true);
+        if (
+            preg_match_all('/^toggleComplicated:(\d+)/', $callback_data, $matches, PREG_SET_ORDER) &&
+            $user instanceof User
+        ) {
             $cardId = (int)$matches[0][1];
-            $toggleResult = DB::toggleComplicated($callback_query->getFrom()->getId(), $cardId);
-            if(is_null($toggleResult)){
+            $toggleResult = DB::toggleComplicated($user->getId(), $cardId);
+            if(is_null($toggleResult)) {
                 return $callback_query->answer([
                     'text'       => $this->getTranslator()->trans('Error'),
                     'show_alert' => true,
@@ -58,6 +64,12 @@ class CallbackqueryCommand extends SystemCommand
                         'text' => !$toggleResult ? $this->getTranslator()->trans('Exclude from complicated') : $this->getTranslator()->trans('Add to complicated'),
                         'callback_data' => sprintf('toggleComplicated:%d', $cardId)
                     ]
+                ],
+                [
+                    $user->isVoiceMessagesEnabled() ? [
+                        'text' => $this->getTranslator()->trans('Play an audio'),
+                        'callback_data' => sprintf('playAudio:%d', $cardId)
+                    ] : []
                 ]
             );
             Request::editMessageReplyMarkup(
@@ -73,21 +85,39 @@ class CallbackqueryCommand extends SystemCommand
                                                'cache_time' => 0,
                                            ]);
         }
-        if (preg_match_all('/^resetShown:(\d+)/', $callback_data, $matches, PREG_SET_ORDER)) {
+        if (
+            preg_match_all('/^resetShown:(\d+)/', $callback_data, $matches, PREG_SET_ORDER) &&
+            $user instanceof User
+        ) {
             $cardId = (int)$matches[0][1];
-            DB::resetShown($callback_query->getFrom()->getId(), $cardId);
-            Request::editMessageReplyMarkup(
-                [
-                    'chat_id' => $message->getChat()->getId(),
-                    'message_id' => $message->getMessageId(),
-                    'reply_markup' => new InlineKeyboard(
+            $card = DB::resetShown($user->getId(), $cardId);
+            if($card instanceof Message) {
+                $inline_keyboard = new InlineKeyboard(
+                    [
                         [
-                            $message->getReplyMarkup()->getRawData()['inline_keyboard'][0][0]->raw_data,
-                            $message->getReplyMarkup()->getRawData()['inline_keyboard'][0][1]->raw_data
+                            'text' => $card->isComplicated() ? $this->getTranslator()->trans('Exclude from complicated') : $this->getTranslator()->trans('Add to complicated'),
+                            'callback_data' => sprintf('toggleComplicated:%d', $card->getId())
                         ]
-                    )
-                ]
-            );
+                    ],
+                    [
+                        [
+                            'text' => $this->getTranslator()->trans('Context'),
+                            'callback_data' => sprintf('context:%d', $card->getId())
+                        ],
+                        $user->isVoiceMessagesEnabled() ? [
+                            'text' => $this->getTranslator()->trans('Play an audio'),
+                            'callback_data' => sprintf('playAudio:%d', $card->getId())
+                        ] : []
+                    ]
+                );
+                Request::editMessageReplyMarkup(
+                    [
+                        'chat_id' => $message->getChat()->getId(),
+                        'message_id' => $message->getMessageId(),
+                        'reply_markup' => $inline_keyboard
+                    ]
+                );
+            }
         }
         if (preg_match_all('/^context:(\d+)/', $callback_data, $matches, PREG_SET_ORDER)) {
             $cardId = (int)$matches[0][1];
@@ -114,17 +144,19 @@ class CallbackqueryCommand extends SystemCommand
                 $this->getLogger()->error($e->getMessage());
             }
         }
-        if (preg_match_all('/^playAudio:(\d+)/', $callback_data, $matches, PREG_SET_ORDER)) {
+        if (
+            preg_match_all('/^playAudio:(\d+)/', $callback_data, $matches, PREG_SET_ORDER) &&
+            $user instanceof User
+        ) {
             $cardId = (int)$matches[0][1];
             $enWord = DB::getWord($cardId);
             $callback_query = $this->getCallbackQuery();
-            $user = $callback_query?->getFrom();
             if(is_null($enWord) || !SpeechKitAPI::isInitialized()) {
                 return $callback_query->answer([
                     'show_alert' => false
                 ]);
             }
-            $oggPath = SpeechKitAPI::textToSpeech($enWord, $user->getId(), $cardId);
+            $oggPath = SpeechKitAPI::textToSpeech($enWord, $user, $cardId);
             if(is_null($oggPath)) {
                 return $callback_query->answer([
                     'show_alert' => false

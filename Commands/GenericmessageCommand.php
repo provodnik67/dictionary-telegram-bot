@@ -172,7 +172,7 @@ class GenericmessageCommand extends SystemCommand
         return Request::emptyResponse();
     }
 
-    private function sendWordsToTheChat(int $chatId, array $messages, User $user, bool $resetShown = true, ): void
+    private function sendWordsToTheChat(int $chatId, array $messages, User $user, bool $resetShown = true): void
     {
         if (count($messages) === self::MAX_WORDS_NUMBER) {
             try {

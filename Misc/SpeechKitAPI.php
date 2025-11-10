@@ -34,22 +34,17 @@ class SpeechKitAPI
         return self::$isInitialized;
     }
 
-    public static function textToSpeech(string $message, int $userId, int $cardId): ?string
+    public static function textToSpeech(string $message, User $user, int $cardId): ?string
     {
         if(!file_exists(self::$cacheFolder)) {
             self::$logger->error('SpeechKitAPI - cache folder is mandatory');
             return null;
         }
-        $user = DB::getOrCreateUser($userId, true);
-        if(!$user instanceof User) {
-            self::$logger->error('SpeechKitAPI - user does not exist: ' . $userId);
-            return null;
-        }
         if(!$user->isVoiceMessagesEnabled()) {
-            self::$logger->error('SpeechKitAPI - user does not have a right to create a voice message: ' . $userId);
+            self::$logger->error('SpeechKitAPI - user does not have a right to create a voice message: ' . $user->getId());
             return null;
         }
-        $fromCache = self::searchInTheCache($userId, $cardId);
+        $fromCache = self::searchInTheCache($user->getId(), $cardId);
         if(!is_null($fromCache)) {
             return $fromCache;
         }
@@ -86,7 +81,7 @@ class SpeechKitAPI
             return null;
         }
 
-        return self::storeInTheCache($response, $userId, $cardId);
+        return self::storeInTheCache($response, $user->getId(), $cardId);
     }
 
     private static function storeInTheCache($voiceMessage, int $userId, int $cardId): ?string

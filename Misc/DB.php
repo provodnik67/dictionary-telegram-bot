@@ -259,19 +259,35 @@ class DB
         return null;
     }
 
-    public static function resetShown(int $userId, int $wordId): void
+    /**
+     * @throws Exception
+     */
+    private static function loadSingleWord(int $wordId): ?Message
+    {
+        $stmt = self::$pdo->prepare(sprintf('SELECT * FROM `%s` WHERE id = :card_id', self::CARDS));
+        $stmt->bindValue(':card_id', $wordId, PDO::PARAM_INT);
+        $stmt->execute();
+        if($data = $stmt->fetch()) {
+            return Message::factory($data);
+        }
+        return null;
+    }
+
+    public static function resetShown(int $userId, int $wordId): ?Message
     {
         if (!self::isDbConnected()) {
-            return;
+            return null;
         }
         try {
             $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET `shown` = false WHERE user_id = :user_id AND id = :word_id', self::CARDS));
             $stmt->bindValue(':word_id', $wordId, PDO::PARAM_INT);
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             $stmt->execute();
-        } catch (PDOException $e) {
+            return self::loadSingleWord($wordId);
+        } catch (PDOException|Exception $e) {
             self::$logger->error($e->getMessage());
         }
+        return null;
     }
 
     public static function getStatistic(int $userId): array
