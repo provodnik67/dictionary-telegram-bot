@@ -208,6 +208,13 @@ class GenericmessageCommand extends SystemCommand
                         'text' => $this->getTranslator()->trans('Play an audio'),
                         'callback_data' => sprintf('playAudio:%d', $message->getId())
                     ] : []
+                ],
+                // @todo подумать как тянуть данные из конфига (прим. word_removing_is_enabled)
+                [
+                    [
+                        'text' => $this->getTranslator()->trans('Remove a word'),
+                        'callback_data' => sprintf('remove:%d', $message->getId())
+                    ]
                 ]
             );
             try {

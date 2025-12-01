@@ -208,6 +208,21 @@ class DB
         return false;
     }
 
+    public static function removeWord(int $userId, int $wordId): void
+    {
+        if (!self::isDbConnected()) {
+            throw new RuntimeException("Database connection failed");
+        }
+        try {
+            $stmt = self::$pdo->prepare(sprintf('DELETE FROM `%s` WHERE id = :id AND user_id = :user_id', self::CARDS));
+            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->bindValue(':id', $wordId, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            self::$logger->error($e->getMessage());
+        }
+    }
+
     public static function simpleSearch(int $userId, string $phrase, string $column, int $limit = 20): array
     {
         $messages = [];

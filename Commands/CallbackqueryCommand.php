@@ -42,6 +42,17 @@ class CallbackqueryCommand extends SystemCommand
         $message = $callback_query->getMessage();
         $user = DB::getOrCreateUser($callback_query->getFrom()->getId(), true);
         if (
+            preg_match_all('/^remove:(\d+)/', $callback_data, $matches, PREG_SET_ORDER) &&
+            $user instanceof User
+        ) {
+            $cardId = (int)$matches[0][1];
+            DB::removeWord($user->getId(), $cardId);
+            Request::deleteMessage([
+                'chat_id'    => $message->getChat()->getId(),
+                'message_id' => $message->getMessageId(),
+            ]);
+        }
+        if (
             preg_match_all('/^toggleComplicated:(\d+)/', $callback_data, $matches, PREG_SET_ORDER) &&
             $user instanceof User
         ) {
@@ -70,6 +81,12 @@ class CallbackqueryCommand extends SystemCommand
                         'text' => $this->getTranslator()->trans('Play an audio'),
                         'callback_data' => sprintf('playAudio:%d', $cardId)
                     ] : []
+                ],
+                [
+                    [
+                        'text' => $this->getTranslator()->trans('Remove a word'),
+                        'callback_data' => sprintf('remove:%d', $cardId)
+                    ]
                 ]
             );
             Request::editMessageReplyMarkup(
@@ -108,6 +125,12 @@ class CallbackqueryCommand extends SystemCommand
                             'text' => $this->getTranslator()->trans('Play an audio'),
                             'callback_data' => sprintf('playAudio:%d', $card->getId())
                         ] : []
+                    ],
+                    [
+                        [
+                            'text' => $this->getTranslator()->trans('Remove a word'),
+                            'callback_data' => sprintf('remove:%d', $card->getId())
+                        ]
                     ]
                 );
                 Request::editMessageReplyMarkup(
