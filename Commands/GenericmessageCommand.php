@@ -68,6 +68,7 @@ class GenericmessageCommand extends SystemCommand
         }
 
         // start trans-command
+        // @todo надо показать пользователю, что система в процессе генерации ответа
         if (preg_match_all('/^!trans (.+)/', $message->getText(), $matches, PREG_SET_ORDER)) {
             if(
                 !DeepSeekAPI::isInitialized() ||
