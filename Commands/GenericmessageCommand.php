@@ -5,8 +5,9 @@ namespace Commands;
 use BaseCommands\SystemCommand;
 use Longman\TelegramBot\Conversation;
 use Longman\TelegramBot\Entities\InlineKeyboard;
-use Misc\DB;
 use Misc\Config;
+use Misc\DB;
+use Misc\DeepSeekAPI;
 use Longman\TelegramBot\Entities\ServerResponse;
 use Longman\TelegramBot\Exception\TelegramException;
 use Longman\TelegramBot\Request;
@@ -65,6 +66,26 @@ class GenericmessageCommand extends SystemCommand
         if($user->isBanned()) {
             return $this->cleanReplyToChat($conversation->getChatId(), $this->getTranslator()->trans('Sorry, your account is banned.'));
         }
+
+        // start trans-command
+        if (preg_match_all('/^!trans (.+)/', $message->getText(), $matches, PREG_SET_ORDER)) {
+            if(
+                !DeepSeekAPI::isInitialized() ||
+                !is_string(Config::get('misc.depp_seek_translation_prompt'))
+            ) {
+                return Request::emptyResponse();
+            }
+            $translateThis = $matches[0][1];
+            $response = DeepSeekAPI::request(sprintf(Config::get('misc.depp_seek_translation_prompt'), $translateThis));
+            if(!empty($response['choices'][0]['message']['content'])) {
+                $contextMessage = $response['choices'][0]['message']['content'];
+            }
+            else {
+                $contextMessage = 'Something went wrong';
+            }
+            return $this->cleanReplyToChat($conversation->getChatId(), $contextMessage);
+        }
+        // end trans-command
 
         // start add-command
 
