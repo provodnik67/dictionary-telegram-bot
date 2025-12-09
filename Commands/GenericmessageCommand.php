@@ -6,6 +6,7 @@ use BaseCommands\SystemCommand;
 use Longman\TelegramBot\Conversation;
 use Longman\TelegramBot\Entities\InlineKeyboard;
 use Misc\DB;
+use Misc\Config;
 use Longman\TelegramBot\Entities\ServerResponse;
 use Longman\TelegramBot\Exception\TelegramException;
 use Longman\TelegramBot\Request;
@@ -209,13 +210,13 @@ class GenericmessageCommand extends SystemCommand
                         'callback_data' => sprintf('playAudio:%d', $message->getId())
                     ] : []
                 ],
-                // @todo подумать как тянуть данные из конфига (прим. word_removing_is_enabled)
+                Config::get('word_removing_is_enabled') === true ?
                 [
                     [
                         'text' => $this->getTranslator()->trans('Remove a word'),
                         'callback_data' => sprintf('remove:%d', $message->getId())
                     ]
-                ]
+                ] : []
             );
             try {
                 Request::sendMessage([

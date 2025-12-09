@@ -12,6 +12,7 @@ use Longman\TelegramBot\Request;
 use Misc\DB;
 use Misc\DeepSeekAPI;
 use Misc\SpeechKitAPI;
+use Misc\Config;
 use Model\Message;
 use Model\User;
 
@@ -43,7 +44,8 @@ class CallbackqueryCommand extends SystemCommand
         $user = DB::getOrCreateUser($callback_query->getFrom()->getId(), true);
         if (
             preg_match_all('/^remove:(\d+)/', $callback_data, $matches, PREG_SET_ORDER) &&
-            $user instanceof User
+            $user instanceof User &&
+            Config::get('word_removing_is_enabled') === true
         ) {
             $cardId = (int)$matches[0][1];
             DB::removeWord($user->getId(), $cardId);
@@ -82,12 +84,13 @@ class CallbackqueryCommand extends SystemCommand
                         'callback_data' => sprintf('playAudio:%d', $cardId)
                     ] : []
                 ],
+                Config::get('word_removing_is_enabled') === true ?
                 [
                     [
                         'text' => $this->getTranslator()->trans('Remove a word'),
                         'callback_data' => sprintf('remove:%d', $cardId)
                     ]
-                ]
+                ] : []
             );
             Request::editMessageReplyMarkup(
                 [
@@ -126,12 +129,13 @@ class CallbackqueryCommand extends SystemCommand
                             'callback_data' => sprintf('playAudio:%d', $card->getId())
                         ] : []
                     ],
+                    Config::get('word_removing_is_enabled') === true ?
                     [
                         [
                             'text' => $this->getTranslator()->trans('Remove a word'),
                             'callback_data' => sprintf('remove:%d', $card->getId())
                         ]
-                    ]
+                    ] : []
                 );
                 Request::editMessageReplyMarkup(
                     [

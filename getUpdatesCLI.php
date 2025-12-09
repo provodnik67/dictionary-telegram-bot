@@ -1,5 +1,6 @@
 <?php
 
+use Misc\Config;
 use Misc\DB;
 use Misc\DeepSeekAPI;
 use Misc\SpeechKitAPI;
@@ -18,39 +19,49 @@ while ($try--) {
     }
 }
 require __DIR__ . '/vendor/autoload.php';
-//@todo надо весь каталог Misc грузить и модельки все, а не по одной
-require __DIR__ . '/Misc/DB.php';
-require __DIR__ . '/Misc/DeepSeekAPI.php';
-require __DIR__ . '/Misc/SpeechKitAPI.php';
-require __DIR__ . '/Model/User.php';
-require __DIR__ . '/Model/Message.php';
-$config = Yaml::parseFile(__DIR__ . '/config.yml');
+$requirements = [
+    __DIR__ . '/Misc/',
+    __DIR__ . '/Model/'
+];
+foreach ($requirements as $dir) {
+    if(is_dir($dir)) {
+        foreach (new RegexIterator(
+                     new RecursiveIteratorIterator(
+                         new RecursiveDirectoryIterator($dir)
+                     ),
+                     '/^.+.php$/'
+                 ) as $file) {
+            require $file->getPathname();
+        }
+    }
+}
+Config::initialize(Yaml::parseFile(__DIR__ . '/config.yml'));
 $seconds = 20;
 $pdoLogger = new Logger('pdo_logger');
 $pdoLogger->pushHandler(new StreamHandler(__DIR__ . '/pdo_error_log', Logger::DEBUG));
 $pdoLogger->pushHandler(new FirePHPHandler());
 try {
-    DB::initialize($config['database'], 'utf8', PDO::ERRMODE_EXCEPTION, $pdoLogger);
+    DB::initialize(Config::get('database'), 'utf8', PDO::ERRMODE_EXCEPTION, $pdoLogger);
 } catch (Exception $e) {
     $pdoLogger->error($e->getMessage());
     die;
 }
 if(
-    !empty($config['misc']['deep_seek_api_key']) &&
-    !empty($config['misc']['deep_seek_base_url']) &&
-    !empty($config['misc']['depp_seek_assistant_prompt'])
+    !empty(Config::get('misc.deep_seek_api_key')) &&
+    !empty(Config::get('misc.deep_seek_base_url')) &&
+    !empty(Config::get('misc.depp_seek_assistant_prompt'))
 ) {
     DeepSeekAPI::initialize(
-        $config['misc']['deep_seek_api_key'],
-        $config['misc']['deep_seek_base_url'],
-        $config['misc']['depp_seek_assistant_prompt'],
+        Config::get('misc.deep_seek_api_key'),
+        Config::get('misc.deep_seek_base_url'),
+        Config::get('misc.depp_seek_assistant_prompt'),
         $pdoLogger // @todo наверно свои логи надо вести, а не pdo
     );
 }
 if(
-    !empty($config['misc']['speech_kit']['folder_id']) &&
-    !empty($config['misc']['speech_kit']['url']) &&
-    !empty($config['misc']['speech_kit']['cache_folder'])
+    !empty(Config::get('misc.speech_kit.folder_id')) &&
+    !empty(Config::get('misc.speech_kit.url')) &&
+    !empty(Config::get('misc.speech_kit.cache_folder'))
 ) {
     if($iamToken = DB::getToken()) {
         $speechKitLogger = new Logger('speech_kit_logger');
@@ -59,15 +70,15 @@ if(
         SpeechKitAPI::initialize(
             $speechKitLogger,
             $iamToken,
-            $config['misc']['speech_kit']['url'],
-            $config['misc']['speech_kit']['folder_id'],
-            $config['misc']['speech_kit']['cache_folder']
+            Config::get('misc.speech_kit.url'),
+            Config::get('misc.speech_kit.folder_id'),
+            Config::get('misc.speech_kit.cache_folder'),
         );
     }
 }
 while ($seconds--) {
     try {
-        $telegram = new Longman\TelegramBot\Telegram($config['bot']['api_key'], $config['bot']['username']);
+        $telegram = new Longman\TelegramBot\Telegram(Config::get('bot.api_key'), Config::get('bot.username'));
         $telegram->addCommandsPaths([__DIR__ . '/Commands']);
         $telegram->addCommandsPaths([__DIR__ . '/BaseCommands']);
         $telegram->useGetUpdatesWithoutDatabase();
