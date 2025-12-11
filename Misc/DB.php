@@ -11,6 +11,7 @@ use PDO;
 use PDOException;
 use PDOStatement;
 use RuntimeException;
+use Misc\Config;
 
 class DB
 {
@@ -137,7 +138,7 @@ class DB
         }
 
         try {
-            $stmt = self::$pdo->prepare(sprintf('SELECT * FROM %s WHERE user_id = :user_id %s AND shown = :shown ORDER BY RAND() LIMIT :limit', self::CARDS, $whereStatement));
+            $stmt = self::$pdo->prepare(sprintf('SELECT * FROM %s WHERE user_id = :user_id %s AND shown = :shown AND deleted = false ORDER BY RAND() LIMIT :limit', self::CARDS, $whereStatement));
             $stmt->bindValue(':limit', $number, PDO::PARAM_INT);
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             if($hard) {
@@ -159,7 +160,7 @@ class DB
             && ($hard ? $statistics['COMPLICATED'] : $statistics['TOTAL']) >= $number
         ) {
             try {
-                $stmt = self::$pdo->prepare(sprintf('SELECT * FROM %s WHERE user_id = :user_id %s AND id NOT IN (%s) ORDER BY RAND() LIMIT :limit', self::CARDS, $whereStatement, implode(',', array_map(function (Message $message) { return $message->getId(); }, $messages))));
+                $stmt = self::$pdo->prepare(sprintf('SELECT * FROM %s WHERE user_id = :user_id %s AND id NOT IN (%s) AND deleted = false ORDER BY RAND() LIMIT :limit', self::CARDS, $whereStatement, implode(',', array_map(function (Message $message) { return $message->getId(); }, $messages))));
                 $stmt->bindValue(':limit', ($number - count($messages)), PDO::PARAM_INT);
                 $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
                 if($hard) {
@@ -208,26 +209,96 @@ class DB
         return false;
     }
 
-    public static function removeWord(int $userId, int $wordId): void
+    public static function recoverWord(int $userId, int $wordId): void
     {
         if (!self::isDbConnected()) {
             throw new RuntimeException("Database connection failed");
         }
         try {
-            $stmt = self::$pdo->prepare(sprintf('DELETE FROM `%s` WHERE id = :id AND user_id = :user_id', self::CARDS));
+            $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET `deleted` = false, `deleted_at` = null, `shown` = false WHERE id = :word_id AND user_id = :user_id', self::CARDS));
+            $stmt->bindValue(':word_id', $wordId, PDO::PARAM_INT);
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
-            $stmt->bindValue(':id', $wordId, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
             self::$logger->error($e->getMessage());
         }
     }
 
+    public static function deleteWordForever(int $userId, int $wordId): void
+    {
+        if (!self::isDbConnected()) {
+            throw new RuntimeException("Database connection failed");
+        }
+        try {
+            $stmt = self::$pdo->prepare(sprintf('DELETE FROM `%s` WHERE id = :word_id AND user_id = :user_id', self::CARDS));
+            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->bindValue(':word_id', $wordId, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            self::$logger->error($e->getMessage());
+        }
+    }
+
+    public static function removeWord(int $userId, int $wordId): void
+    {
+        if (!self::isDbConnected()) {
+            throw new RuntimeException("Database connection failed");
+        }
+        try {
+            $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET `deleted` = true, `deleted_at` = :deleted_at WHERE id = :word_id AND user_id = :user_id', self::CARDS));
+            $stmt->bindValue(':word_id', $wordId, PDO::PARAM_INT);
+            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->bindValue(':deleted_at', (new DateTime())->format('Y-m-d H:i:s'));
+            $stmt->execute();
+        } catch (PDOException $e) {
+            self::$logger->error($e->getMessage());
+        }
+        $recycleBinLimit = Config::get('recycle_bin_limit') ?? 30;
+        $query = sprintf('DELETE FROM %s WHERE user_id = :user_id AND deleted = true AND
+             id NOT IN (
+                SELECT id FROM (
+                    SELECT id FROM %s WHERE user_id = :user_id AND deleted = true
+                    ORDER BY deleted_at DESC
+                    LIMIT %d
+                ) AS subquery
+            )', self::CARDS, self::CARDS, $recycleBinLimit);
+        try {
+            $stmt = self::$pdo->prepare($query);
+            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            self::$logger->error($e->getMessage());
+        }
+    }
+
+    public static function getDeleted(int $userId): array
+    {
+        $messages = [];
+        try {
+            $sql = sprintf('SELECT * FROM %s WHERE `user_id` = :user_id AND deleted = true ORDER BY deleted_at DESC', self::CARDS);
+            $stmt = self::$pdo->prepare($sql);
+            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            self::$logger->error($e->getMessage());
+        }
+        while ($row = $stmt->fetch()) {
+            try {
+                $message = Message::factory($row);
+                $message->setText(sprintf('%s --> %s', $row['en'], $row['ru']));
+                $messages[] = $message;
+            } catch (Exception $e) {
+                self::$logger->error($e->getMessage());
+            }
+        }
+        return $messages;
+    }
+
     public static function simpleSearch(int $userId, string $phrase, string $column, int $limit = 20): array
     {
         $messages = [];
         try {
-            $sql = sprintf('SELECT * FROM %s WHERE %s LIKE :phrase AND `user_id` = :user_id LIMIT :limit', self::CARDS, $column);
+            $sql = sprintf('SELECT * FROM %s WHERE %s LIKE :phrase AND `user_id` = :user_id AND deleted = false LIMIT :limit', self::CARDS, $column);
             $stmt = self::$pdo->prepare($sql);
             $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
             $stmt->bindValue(':phrase', $phrase . '%');
@@ -313,9 +384,9 @@ class DB
         try {
             $stmt = self::$pdo->prepare(sprintf('SELECT
                 (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id) AS TOTAL,
-                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `shown` = :shown) AS TOTAL_SHOWN,
-                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `complicated` = :complicated) AS COMPLICATED,
-                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `complicated` = :complicated AND `shown` = :shown) AS COMPLICATED_SHOWN
+                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `shown` = :shown AND deleted = false) AS TOTAL_SHOWN,
+                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `complicated` = :complicated AND deleted = false) AS COMPLICATED,
+                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `complicated` = :complicated AND `shown` = :shown AND deleted = false) AS COMPLICATED_SHOWN
             ', self::CARDS, self::CARDS, self::CARDS, self::CARDS));
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             $stmt->bindValue(':complicated', true, PDO::PARAM_BOOL);
