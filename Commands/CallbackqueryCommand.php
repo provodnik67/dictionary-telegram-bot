@@ -35,6 +35,7 @@ class CallbackqueryCommand extends SystemCommand
 
     /**
      * @throws Exception
+     * @todo Разбить на методы
      */
     public function execute(): ServerResponse
     {
@@ -42,6 +43,26 @@ class CallbackqueryCommand extends SystemCommand
         $callback_data  = $callback_query->getData();
         $message = $callback_query->getMessage();
         $user = DB::getOrCreateUser($callback_query->getFrom()->getId(), true);
+        $deleteMessage = false;
+
+        // start move to the recycle bin; delete; recover
+        if (
+            preg_match_all('/^recover:(\d+)/', $callback_data, $matches, PREG_SET_ORDER) &&
+            $user instanceof User
+        ) {
+            $cardId = (int)$matches[0][1];
+            DB::recoverWord($user->getId(), $cardId);
+            $deleteMessage = true;
+        }
+        if (
+            preg_match_all('/^deleteForever:(\d+)/', $callback_data, $matches, PREG_SET_ORDER) &&
+            $user instanceof User &&
+            Config::get('word_removing_is_enabled') === true
+        ) {
+            $cardId = (int)$matches[0][1];
+            DB::deleteWordForever($user->getId(), $cardId);
+            $deleteMessage = true;
+        }
         if (
             preg_match_all('/^remove:(\d+)/', $callback_data, $matches, PREG_SET_ORDER) &&
             $user instanceof User &&
@@ -49,11 +70,16 @@ class CallbackqueryCommand extends SystemCommand
         ) {
             $cardId = (int)$matches[0][1];
             DB::removeWord($user->getId(), $cardId);
+            $deleteMessage = true;
+        }
+        if($deleteMessage) {
             Request::deleteMessage([
                 'chat_id'    => $message->getChat()->getId(),
                 'message_id' => $message->getMessageId(),
             ]);
         }
+        // end move to the recycle bin; delete; recover
+
         if (
             preg_match_all('/^toggleComplicated:(\d+)/', $callback_data, $matches, PREG_SET_ORDER) &&
             $user instanceof User
@@ -105,6 +131,7 @@ class CallbackqueryCommand extends SystemCommand
                                                'cache_time' => 0,
                                            ]);
         }
+
         if (
             preg_match_all('/^resetShown:(\d+)/', $callback_data, $matches, PREG_SET_ORDER) &&
             $user instanceof User
@@ -146,6 +173,7 @@ class CallbackqueryCommand extends SystemCommand
                 );
             }
         }
+
         if (preg_match_all('/^context:(\d+)/', $callback_data, $matches, PREG_SET_ORDER)) {
             $cardId = (int)$matches[0][1];
             $enWord = DB::getWord($cardId);
@@ -171,6 +199,7 @@ class CallbackqueryCommand extends SystemCommand
                 $this->getLogger()->error($e->getMessage());
             }
         }
+
         if (
             preg_match_all('/^playAudio:(\d+)/', $callback_data, $matches, PREG_SET_ORDER) &&
             $user instanceof User
