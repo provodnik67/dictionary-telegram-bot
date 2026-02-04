@@ -75,7 +75,7 @@ class DB
     private static function fillMessages(PDOStatement $statement): array
     {
         $messages = [];
-        $keys = ['ru', 'en'];
+        $keys = ['ru', 'translation'];
         while ($row = $statement->fetch()) {
             try {
                 $message = Message::factory($row);
@@ -115,32 +115,33 @@ class DB
         }
     }
 
-    public static function getSpecificNumberOfWords(int $userId, int $number, bool $hard = false, ?int $categoryId = null): array
+    public static function getSpecificNumberOfWords(User $user, int $number, bool $hard = false, ?int $categoryId = null): array
     {
         if (!self::isDbConnected()) {
             return [];
         }
 
-        $statistics = self::getStatistic($userId);
+        $statistics = self::getStatistic($user->getId());
         if(
             ($hard && $statistics['COMPLICATED'] === $statistics['COMPLICATED_SHOWN'])
             || ($statistics['TOTAL'] === $statistics['TOTAL_SHOWN'])
         ) {
-            self::resetDictionary($userId, $hard);
+            self::resetDictionary($user->getId(), $hard);
         }
 
         $whereStatement = '';
         if($hard) {
-            $whereStatement .= ' AND complicated = :complicated ';
+            $whereStatement .= ' AND `complicated` = :complicated ';
         }
         if($categoryId) {
-            $whereStatement .= ' AND category_id = :category_id ';
+            $whereStatement .= ' AND `category_id` = :category_id ';
         }
 
         try {
-            $stmt = self::$pdo->prepare(sprintf('SELECT * FROM %s WHERE user_id = :user_id %s AND shown = :shown AND deleted = false ORDER BY RAND() LIMIT :limit', self::CARDS, $whereStatement));
+            $stmt = self::$pdo->prepare(sprintf('SELECT * FROM %s WHERE `user_id` = :user_id %s AND `shown` = :shown AND `deleted` = false AND `language` = :lang ORDER BY RAND() LIMIT :limit', self::CARDS, $whereStatement));
             $stmt->bindValue(':limit', $number, PDO::PARAM_INT);
-            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->bindValue(':user_id', $user->getId(), PDO::PARAM_INT);
+            $stmt->bindValue(':lang', $user->getLanguage());
             if($hard) {
                 $stmt->bindValue(':complicated', true, PDO::PARAM_BOOL);
             }
@@ -160,9 +161,10 @@ class DB
             && ($hard ? $statistics['COMPLICATED'] : $statistics['TOTAL']) >= $number
         ) {
             try {
-                $stmt = self::$pdo->prepare(sprintf('SELECT * FROM %s WHERE user_id = :user_id %s AND id NOT IN (%s) AND deleted = false ORDER BY RAND() LIMIT :limit', self::CARDS, $whereStatement, implode(',', array_map(function (Message $message) { return $message->getId(); }, $messages))));
+                $stmt = self::$pdo->prepare(sprintf('SELECT * FROM %s WHERE `user_id` = :user_id %s AND `id` NOT IN (%s) AND `deleted` = false AND `language` = :lang ORDER BY RAND() LIMIT :limit', self::CARDS, $whereStatement, implode(',', array_map(function (Message $message) { return $message->getId(); }, $messages))));
                 $stmt->bindValue(':limit', ($number - count($messages)), PDO::PARAM_INT);
-                $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+                $stmt->bindValue(':user_id', $user->getId(), PDO::PARAM_INT);
+                $stmt->bindValue(':lang', $user->getLanguage());
                 if($hard) {
                     $stmt->bindValue(':complicated', true, PDO::PARAM_BOOL);
                 }
@@ -174,13 +176,13 @@ class DB
                 self::$logger->error($e->getMessage());
             }
             $messages = array_merge($messages, self::fillMessages($stmt));
-            self::resetDictionary($userId, $hard);
+            self::resetDictionary($user->getId(), $hard);
             $reset = true;
         }
         if(!$reset && $messages) {
             try {
                 $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET shown = true WHERE user_id = :user_id AND id IN (%s)', self::CARDS, implode(',', array_map(function (Message $message) { return $message->getId(); }, $messages))));
-                $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+                $stmt->bindValue(':user_id', $user->getId(), PDO::PARAM_INT);
                 $stmt->execute();
             } catch (PDOException $e) {
                 self::$logger->error($e->getMessage());
@@ -189,19 +191,20 @@ class DB
         return $messages;
     }
 
-    public static function insertWord(int $userId, string $word, string $translation): bool
+    public static function insertWord(User $user, string $word, string $translation): bool
     {
         if (!self::isDbConnected()) {
             return false;
         }
 
         try {
-            $stmt = self::$pdo->prepare(sprintf('INSERT INTO `%s`(`en`, `ru`, `complicated`, `user_id`, `created_at`) VALUES (:en, :ru, :complicated, :user_id, :created_at)', self::CARDS));
+            $stmt = self::$pdo->prepare(sprintf('INSERT INTO `%s`(`translation`, `ru`, `complicated`, `user_id`, `created_at`, `language`) VALUES (:translation, :ru, :complicated, :user_id, :created_at, :language)', self::CARDS));
             $stmt->bindValue(':ru', $word);
-            $stmt->bindValue(':en', $translation);
-            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->bindValue(':translation', $translation);
+            $stmt->bindValue(':user_id', $user->getId(), PDO::PARAM_INT);
             $stmt->bindValue(':complicated', true, PDO::PARAM_BOOL);
             $stmt->bindValue(':created_at', (new DateTime())->format('Y-m-d H:i:s'));
+            $stmt->bindValue(':language', $user->getLanguage());
             return $stmt->execute();
         } catch (PDOException $e) {
             self::$logger->error($e->getMessage());
@@ -294,20 +297,21 @@ class DB
         return $messages;
     }
 
-    public static function simpleSearch(int $userId, string $phrase, string $column, int $limit = 20): array
+    public static function simpleSearch(User $user, string $phrase, string $column, int $limit = 20): array
     {
         $messages = [];
         try {
-            $sql = sprintf('SELECT * FROM %s WHERE %s LIKE :phrase AND `user_id` = :user_id AND deleted = false LIMIT :limit', self::CARDS, $column);
+            $sql = sprintf('SELECT * FROM %s WHERE `%s` LIKE :phrase AND `user_id` = :user_id AND `deleted` = false AND `language` = :lang LIMIT :limit', self::CARDS, $column);
             $stmt = self::$pdo->prepare($sql);
             $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
             $stmt->bindValue(':phrase', $phrase . '%');
-            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->bindValue(':user_id', $user->getId(), PDO::PARAM_INT);
+            $stmt->bindValue(':lang', $user->getLanguage());
             $stmt->execute();
         } catch (PDOException $e) {
             self::$logger->error($e->getMessage());
         }
-        $oppositeColumn = $column === 'en' ? 'ru' : 'en';
+        $oppositeColumn = $column === 'translation' ? 'ru' : 'translation';
         while ($row = $stmt->fetch()) {
             try {
                 $message = Message::factory($row);
