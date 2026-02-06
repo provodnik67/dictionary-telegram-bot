@@ -176,12 +176,21 @@ class CallbackqueryCommand extends SystemCommand
 
         if (preg_match_all('/^context:(\d+)/', $callback_data, $matches, PREG_SET_ORDER)) {
             $cardId = (int)$matches[0][1];
-            $enWord = DB::getWord($cardId);
-            if(is_null($enWord) || !DeepSeekAPI::isInitialized()) {
+            $translation = DB::getWord($cardId);
+            $contextMessage = null;
+            if($user->getLanguage() !== 'en') {
+                $contextMessage = 'english only';
+            }
+            if(
+                is_null($contextMessage) &&
+                (
+                    is_null($translation) || !DeepSeekAPI::isInitialized()
+                )
+            ) {
                 $contextMessage = 'something went wrong';
             }
-            else {
-                $response = DeepSeekAPI::request(sprintf('Give me five short sentences with the word "%s". The list has to be with numbers.', $enWord));
+            if(is_null($contextMessage)) {
+                $response = DeepSeekAPI::request(sprintf('Give me five short sentences with the english word "%s". The list has to be with numbers.', $translation));
                 if(!empty($response['choices'][0]['message']['content'])) {
                     $contextMessage = $response['choices'][0]['message']['content'];
                 }
@@ -205,14 +214,19 @@ class CallbackqueryCommand extends SystemCommand
             $user instanceof User
         ) {
             $cardId = (int)$matches[0][1];
-            $enWord = DB::getWord($cardId);
+            $translation = DB::getWord($cardId);
             $callback_query = $this->getCallbackQuery();
-            if(is_null($enWord) || !SpeechKitAPI::isInitialized()) {
+            if($user->getLanguage() !== 'en') {
                 return $callback_query->answer([
                     'show_alert' => false
                 ]);
             }
-            $oggPath = SpeechKitAPI::textToSpeech($enWord, $user, $cardId);
+            if(is_null($translation) || !SpeechKitAPI::isInitialized()) {
+                return $callback_query->answer([
+                    'show_alert' => false
+                ]);
+            }
+            $oggPath = SpeechKitAPI::textToSpeech($translation, $user, $cardId);
             if(is_null($oggPath)) {
                 return $callback_query->answer([
                     'show_alert' => false

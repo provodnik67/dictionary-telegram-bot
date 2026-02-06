@@ -44,7 +44,7 @@ class AddCommand extends SystemCommand
         $forceReply = Keyboard::forceReply(
             [
                 'message_id' => $message->getMessageId(),
-                'input_field_placeholder' => $this->getTranslator()->trans('Word in English - Russian translation')
+                'input_field_placeholder' => $this->getTranslator()->trans('Word in Foreign Language - Russian translation')
             ]
         );
         Request::sendMessage([

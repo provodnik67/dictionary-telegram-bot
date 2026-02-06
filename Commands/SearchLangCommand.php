@@ -8,22 +8,22 @@ use Longman\TelegramBot\Entities\ServerResponse;
 use Longman\TelegramBot\Exception\TelegramException;
 use Longman\TelegramBot\Request;
 
-class SearchEnCommand extends SystemCommand
+class SearchLangCommand extends SystemCommand
 {
     /**
      * @var string
      */
-    protected $name = 'search_en';
+    protected $name = 'search_lang';
 
     /**
      * @var string
      */
-    protected $description = 'Search in english';
+    protected $description = 'Search in foreign language';
 
     /**
      * @var string
      */
-    protected $usage = '/search_en';
+    protected $usage = '/search_lang';
 
     /**
      * @var string
@@ -44,12 +44,12 @@ class SearchEnCommand extends SystemCommand
         $forceReply = Keyboard::forceReply(
             [
                 'message_id' => $message->getMessageId(),
-                'input_field_placeholder' => $this->getTranslator()->trans('Type the word or part of the word in English')
+                'input_field_placeholder' => $this->getTranslator()->trans('Type the word or part of the word in Foreign Language'),
             ]
         );
         Request::sendMessage([
             'chat_id' => $message->getChat()->getId(),
-            'text' => '!en',
+            'text' => '!lang',
             'reply_markup' => $forceReply,
             'allow_sending_without_reply' => false
         ]);

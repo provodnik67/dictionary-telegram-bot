@@ -11,7 +11,6 @@ use PDO;
 use PDOException;
 use PDOStatement;
 use RuntimeException;
-use Misc\Config;
 
 class DB
 {
@@ -288,7 +287,7 @@ class DB
         while ($row = $stmt->fetch()) {
             try {
                 $message = Message::factory($row);
-                $message->setText(sprintf('%s --> %s', $row['en'], $row['ru']));
+                $message->setText(sprintf('%s --> %s', $row['translation'], $row['ru']));
                 $messages[] = $message;
             } catch (Exception $e) {
                 self::$logger->error($e->getMessage());
@@ -438,11 +437,11 @@ class DB
             return null;
         }
         try {
-            $stmt = self::$pdo->prepare(sprintf('SELECT `en` FROM `%s` WHERE id = :word_id', self::CARDS));
+            $stmt = self::$pdo->prepare(sprintf('SELECT `translation` FROM `%s` WHERE id = :word_id', self::CARDS));
             $stmt->bindValue(':word_id', $wordId, PDO::PARAM_INT);
             $stmt->execute();
             if($data = $stmt->fetch()) {
-                return $data['en'];
+                return $data['translation'];
             }
         } catch (PDOException $e) {
             self::$logger->error($e->getMessage());
