@@ -67,7 +67,6 @@ class GenericmessageCommand extends SystemCommand
         }
 
         // start add-command
-
         if($message->getReplyToMessage() && $message->getReplyToMessage()->getText() === '!add') {
             if (preg_match_all('/(.+) - (.+)/', $message->getText(), $matches, PREG_SET_ORDER)) {
                 DB::insertWord($user, $matches[0][2], $matches[0][1]);
@@ -80,7 +79,6 @@ class GenericmessageCommand extends SystemCommand
             DB::insertWord($user, $matches[0][2], $matches[0][1]);
             return $this->cleanReplyToChat($conversation->getChatId(), $this->getTranslator()->trans('Word was successfully added.'));
         }
-
         // end add-command
 
         // start searching by category
@@ -97,11 +95,9 @@ class GenericmessageCommand extends SystemCommand
             }
             return Request::emptyResponse();
         }
-
         // end searching by category
 
         // start output specific number of words
-
         if (is_numeric($message->getText())) {
             $number = (int)$message->getText();
             $messages = DB::getSpecificNumberOfWords($user, min($number, self::MAX_WORDS_NUMBER));
@@ -111,11 +107,9 @@ class GenericmessageCommand extends SystemCommand
             $this->sendWordsToTheChat($conversation->getChatId(), $messages, $user);
             return Request::emptyResponse();
         }
-
         // end output specific number of words
 
         // start complicated-search
-
         if (preg_match_all('/^\*(\d+)/', $message->getText(), $matches, PREG_SET_ORDER)) {
             if (is_numeric($matches[0][1])) {
                 $number = (int)$matches[0][1];
@@ -127,11 +121,9 @@ class GenericmessageCommand extends SystemCommand
             }
             return Request::emptyResponse();
         }
-
         // end complicated-search
 
         // start ru-search
-
         if($message->getReplyToMessage() && $message->getReplyToMessage()->getText() === '!ru') {
             $search = $message->getText();
             $messages = DB::simpleSearch($user, $search, 'ru');
@@ -145,11 +137,9 @@ class GenericmessageCommand extends SystemCommand
             $this->sendWordsToTheChat($conversation->getChatId(), $messages, $user, false);
             return Request::emptyResponse();
         }
-
         // end ru-search
 
-        // start en-search
-
+        // start uni-search
         if($message->getReplyToMessage() && $message->getReplyToMessage()->getText() === '!lang') {
             $search = $message->getText();
             $messages = DB::simpleSearch($user, $search, 'translation');
@@ -163,8 +153,27 @@ class GenericmessageCommand extends SystemCommand
             $this->sendWordsToTheChat($conversation->getChatId(), $messages, $user, false);
             return Request::emptyResponse();
         }
+        // end uni-search
 
-        // end en-search
+        // start change lang
+        if($message->getReplyToMessage() && $message->getReplyToMessage()->getText() === '!change_language') {
+            $isoCode = $message->getText();
+            if(strlen($isoCode) !== 2) {
+                try {
+                    Request::sendMessage([
+                        'chat_id' => $conversation->getChatId(),
+                        'text' => $this->getTranslator()->trans('Two letters only.'),
+                        'reply_markup' => ['remove_keyboard' => true]
+                    ]);
+                }
+                catch (TelegramException $e) {
+                    $this->getLogger()->error($e->getMessage());
+                }
+            }
+            DB::changeLanguage($user, $isoCode);
+            return Request::emptyResponse();
+        }
+        // end change lang
 
         return Request::emptyResponse();
     }

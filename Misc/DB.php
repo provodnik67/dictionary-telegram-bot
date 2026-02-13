@@ -522,4 +522,19 @@ class DB
             self::$logger->error($e->getMessage());
         }
     }
+
+    public static function changeLanguage(User $user, string $isoCode): void
+    {
+        if (!self::isDbConnected()) {
+            return;
+        }
+        try {
+            $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET language = :lang WHERE user_id = :user_id ', self::USERS));
+            $stmt->bindValue(':user_id', $user->getId(), PDO::PARAM_INT);
+            $stmt->bindValue(':lang', $isoCode);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            self::$logger->error($e->getMessage());
+        }
+    }
 }
