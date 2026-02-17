@@ -120,7 +120,7 @@ class DB
             return [];
         }
 
-        $statistics = self::getStatistic($user->getId());
+        $statistics = self::getStatistic($user);
         if(
             ($hard && $statistics['COMPLICATED'] === $statistics['COMPLICATED_SHOWN'])
             || ($statistics['TOTAL'] === $statistics['TOTAL_SHOWN'])
@@ -379,21 +379,22 @@ class DB
         return null;
     }
 
-    public static function getStatistic(int $userId): array
+    public static function getStatistic(User $user): array
     {
         if (!self::isDbConnected()) {
             return [];
         }
         try {
             $stmt = self::$pdo->prepare(sprintf('SELECT
-                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id) AS TOTAL,
-                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `shown` = :shown AND deleted = false) AS TOTAL_SHOWN,
-                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `complicated` = :complicated AND deleted = false) AS COMPLICATED,
-                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `complicated` = :complicated AND `shown` = :shown AND deleted = false) AS COMPLICATED_SHOWN
+                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `language` = :lang) AS TOTAL,
+                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `shown` = :shown AND deleted = false AND `language` = :lang) AS TOTAL_SHOWN,
+                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `complicated` = :complicated AND deleted = false AND `language` = :lang) AS COMPLICATED,
+                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `complicated` = :complicated AND `shown` = :shown AND deleted = false AND `language` = :lang) AS COMPLICATED_SHOWN
             ', self::CARDS, self::CARDS, self::CARDS, self::CARDS));
-            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+            $stmt->bindValue(':user_id', $user->getId(), PDO::PARAM_INT);
             $stmt->bindValue(':complicated', true, PDO::PARAM_BOOL);
             $stmt->bindValue(':shown', true, PDO::PARAM_BOOL);
+            $stmt->bindValue(':lang', $user->getLanguage());
             $stmt->execute();
             return $stmt->fetch();
         } catch (PDOException $e) {
@@ -529,7 +530,7 @@ class DB
             return;
         }
         try {
-            $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET language = :lang WHERE user_id = :user_id ', self::USERS));
+            $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET language = :lang WHERE id = :user_id ', self::USERS));
             $stmt->bindValue(':user_id', $user->getId(), PDO::PARAM_INT);
             $stmt->bindValue(':lang', $isoCode);
             $stmt->execute();

@@ -171,6 +171,11 @@ class GenericmessageCommand extends SystemCommand
                 }
             }
             DB::changeLanguage($user, $isoCode);
+            Request::sendMessage([
+                'chat_id' => $conversation->getChatId(),
+                'text' => $this->getTranslator()->trans('Language is changed successfully.'),
+                'reply_markup' => ['remove_keyboard' => true]
+            ]);
             return Request::emptyResponse();
         }
         // end change lang

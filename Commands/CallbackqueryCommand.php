@@ -179,7 +179,7 @@ class CallbackqueryCommand extends SystemCommand
             $translation = DB::getWord($cardId);
             $contextMessage = null;
             if($user->getLanguage() !== 'en') {
-                $contextMessage = 'english only';
+                $contextMessage = $this->getTranslator()->trans('English only.');
             }
             if(
                 is_null($contextMessage) &&
@@ -218,6 +218,7 @@ class CallbackqueryCommand extends SystemCommand
             $callback_query = $this->getCallbackQuery();
             if($user->getLanguage() !== 'en') {
                 return $callback_query->answer([
+                    'text' => $this->getTranslator()->trans('English only.'),
                     'show_alert' => false
                 ]);
             }

@@ -57,7 +57,7 @@ class StatusCommand extends SystemCommand
                 $this->getTranslator()->trans('Sorry, your account is banned.')
             );
         }
-        $statistics = DB::getStatistic($user->getId());
+        $statistics = DB::getStatistic($user);
         if(!$statistics) {
             return $this->replyToChat(
                 $this->getTranslator()->trans('No data.')
