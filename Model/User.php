@@ -28,6 +28,11 @@ class User
     private $voiceMessagesEnabled;
 
     /**
+     * @var string
+     */
+    private $language;
+
+    /**
      * @throws Exception
      */
     public static function factory(array $data): User
@@ -44,11 +49,15 @@ class User
         if(!isset($data['voice_messages_enabled'])) {
             throw new Exception('`voice_messages_enabled` key must exist in the data array');
         }
+        if(!isset($data['language'])) {
+            throw new Exception('`language` key must exist in the data array');
+        }
         $user = new self();
         $user->id = (int) $data['id'];
         $user->created = $data['created'] instanceof DateTime ? $data['created'] : new DateTime($data['created']);
         $user->banned = (bool) $data['banned'];
         $user->voiceMessagesEnabled = (bool) $data['voice_messages_enabled'];
+        $user->language = $data['language'];
         return $user;
     }
 
@@ -70,5 +79,10 @@ class User
     public function getId(): int
     {
         return $this->id;
+    }
+
+    public function getLanguage(): string
+    {
+        return $this->language;
     }
 }

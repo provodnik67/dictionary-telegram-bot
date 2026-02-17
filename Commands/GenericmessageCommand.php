@@ -67,24 +67,18 @@ class GenericmessageCommand extends SystemCommand
         }
 
         // start add-command
-
         if($message->getReplyToMessage() && $message->getReplyToMessage()->getText() === '!add') {
             if (preg_match_all('/(.+) - (.+)/', $message->getText(), $matches, PREG_SET_ORDER)) {
-                $en = $matches[0][1];
-                $ru = $matches[0][2];
-                DB::insertWord($conversation->getUserId(), $ru, $en);
+                DB::insertWord($user, $matches[0][2], $matches[0][1]);
                 return $this->cleanReplyToChat($conversation->getChatId(), $this->getTranslator()->trans('Word was successfully added.'));
             }
             return Request::emptyResponse();
         }
 
         if (preg_match_all('/^!add (.+) - (.+)/', $message->getText(), $matches, PREG_SET_ORDER)) {
-            $en = $matches[0][1];
-            $ru = $matches[0][2];
-            DB::insertWord($conversation->getUserId(), $ru, $en);
+            DB::insertWord($user, $matches[0][2], $matches[0][1]);
             return $this->cleanReplyToChat($conversation->getChatId(), $this->getTranslator()->trans('Word was successfully added.'));
         }
-
         // end add-command
 
         // start searching by category
@@ -93,7 +87,7 @@ class GenericmessageCommand extends SystemCommand
             if (is_numeric($matches[0][1]) && is_numeric($matches[0][2])) {
                 $categoryId = (int)$matches[0][1];
                 $number = (int)$matches[0][2];
-                $messages = DB::getSpecificNumberOfWords($conversation->getUserId(), min($number, self::MAX_WORDS_NUMBER), false, $categoryId);
+                $messages = DB::getSpecificNumberOfWords($user, min($number, self::MAX_WORDS_NUMBER), false, $categoryId);
                 if (!$messages) {
                     return $this->cleanReplyToChat($conversation->getChatId(), $this->getTranslator()->trans('Your dictionary is empty.'));
                 }
@@ -101,29 +95,25 @@ class GenericmessageCommand extends SystemCommand
             }
             return Request::emptyResponse();
         }
-
         // end searching by category
 
         // start output specific number of words
-
         if (is_numeric($message->getText())) {
             $number = (int)$message->getText();
-            $messages = DB::getSpecificNumberOfWords($conversation->getUserId(), min($number, self::MAX_WORDS_NUMBER));
+            $messages = DB::getSpecificNumberOfWords($user, min($number, self::MAX_WORDS_NUMBER));
             if (!$messages) {
                 return $this->cleanReplyToChat($conversation->getChatId(), $this->getTranslator()->trans('Your dictionary is empty. Use the command !add.'));
             }
             $this->sendWordsToTheChat($conversation->getChatId(), $messages, $user);
             return Request::emptyResponse();
         }
-
         // end output specific number of words
 
         // start complicated-search
-
         if (preg_match_all('/^\*(\d+)/', $message->getText(), $matches, PREG_SET_ORDER)) {
             if (is_numeric($matches[0][1])) {
                 $number = (int)$matches[0][1];
-                $messages = DB::getSpecificNumberOfWords($conversation->getUserId(), min($number, self::MAX_WORDS_NUMBER), true);
+                $messages = DB::getSpecificNumberOfWords($user, min($number, self::MAX_WORDS_NUMBER), true);
                 if (!$messages) {
                     return $this->cleanReplyToChat($conversation->getChatId(), $this->getTranslator()->trans('Your complicated dictionary is empty.'));
                 }
@@ -131,44 +121,64 @@ class GenericmessageCommand extends SystemCommand
             }
             return Request::emptyResponse();
         }
-
         // end complicated-search
 
         // start ru-search
-
         if($message->getReplyToMessage() && $message->getReplyToMessage()->getText() === '!ru') {
             $search = $message->getText();
-            $messages = DB::simpleSearch($conversation->getUserId(), $search, 'ru');
+            $messages = DB::simpleSearch($user, $search, 'ru');
             $this->sendWordsToTheChat($conversation->getChatId(), $messages, $user, false);
             return Request::emptyResponse();
         }
 
         if (preg_match_all('/^!ru (.+)/', $message->getText(), $matches, PREG_SET_ORDER)) {
             $search = $matches[0][1];
-            $messages = DB::simpleSearch($conversation->getUserId(), $search, 'ru');
+            $messages = DB::simpleSearch($user, $search, 'ru');
             $this->sendWordsToTheChat($conversation->getChatId(), $messages, $user, false);
             return Request::emptyResponse();
         }
-
         // end ru-search
 
-        // start en-search
-
-        if($message->getReplyToMessage() && $message->getReplyToMessage()->getText() === '!en') {
+        // start uni-search
+        if($message->getReplyToMessage() && $message->getReplyToMessage()->getText() === '!lang') {
             $search = $message->getText();
-            $messages = DB::simpleSearch($conversation->getUserId(), $search, 'en');
+            $messages = DB::simpleSearch($user, $search, 'translation');
             $this->sendWordsToTheChat($conversation->getChatId(), $messages, $user, false);
             return Request::emptyResponse();
         }
 
-        if (preg_match_all('/^!en (.+)/', $message->getText(), $matches, PREG_SET_ORDER)) {
+        if (preg_match_all('/^!lang (.+)/', $message->getText(), $matches, PREG_SET_ORDER)) {
             $search = $matches[0][1];
-            $messages = DB::simpleSearch($conversation->getUserId(), $search, 'en');
+            $messages = DB::simpleSearch($user, $search, 'translation');
             $this->sendWordsToTheChat($conversation->getChatId(), $messages, $user, false);
             return Request::emptyResponse();
         }
+        // end uni-search
 
-        // end en-search
+        // start change lang
+        if($message->getReplyToMessage() && $message->getReplyToMessage()->getText() === '!change_language') {
+            $isoCode = $message->getText();
+            if(strlen($isoCode) !== 2) {
+                try {
+                    Request::sendMessage([
+                        'chat_id' => $conversation->getChatId(),
+                        'text' => $this->getTranslator()->trans('Two letters only.'),
+                        'reply_markup' => ['remove_keyboard' => true]
+                    ]);
+                }
+                catch (TelegramException $e) {
+                    $this->getLogger()->error($e->getMessage());
+                }
+            }
+            DB::changeLanguage($user, $isoCode);
+            Request::sendMessage([
+                'chat_id' => $conversation->getChatId(),
+                'text' => $this->getTranslator()->trans('Language is changed successfully.'),
+                'reply_markup' => ['remove_keyboard' => true]
+            ]);
+            return Request::emptyResponse();
+        }
+        // end change lang
 
         return Request::emptyResponse();
     }

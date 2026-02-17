@@ -21,7 +21,7 @@ class Message
     /**
      * @var string
      */
-    private $en;
+    private $translation;
 
     /**
      * @var string
@@ -55,7 +55,7 @@ class Message
     {
         $required = [
             'id',
-            'en',
+            'translation',
             'ru',
             'complicated',
             'user_id',
@@ -68,7 +68,7 @@ class Message
         $message = new self();
         $message->id = (int) $data['id'];
         $message->created = !empty($data['created']) ? new DateTime($data['created']) : null;
-        $message->en = $data['en'];
+        $message->translation = $data['translation'];
         $message->ru = $data['ru'];
         $message->complicated = (bool) $data['complicated'];
         $message->userId = (int) $data['user_id'];
@@ -85,9 +85,9 @@ class Message
         return $this->created;
     }
 
-    public function getEn(): string
+    public function getTranslation(): string
     {
-        return $this->en;
+        return $this->translation;
     }
 
     public function getRu(): string
