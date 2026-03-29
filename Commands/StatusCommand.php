@@ -58,17 +58,26 @@ class StatusCommand extends SystemCommand
             );
         }
         $statistics = DB::getStatistic($user);
-        if(!$statistics) {
+        if ($statistics === []) {
             return $this->replyToChat(
                 $this->getTranslator()->trans('No data.')
             );
         }
-        return $this->replyToChat(
-            $this->getTranslator()->trans('Your current language is') . ' ' . $user->getLanguage() . PHP_EOL .
-            $this->getTranslator()->trans('Words total count -') . ' ' . $statistics['TOTAL'] . PHP_EOL .
-            $this->getTranslator()->trans('Words total shown count -') . ' ' . $statistics['TOTAL_SHOWN'] . PHP_EOL .
-            $this->getTranslator()->trans('Complicated -') . ' ' . $statistics['COMPLICATED'] . PHP_EOL .
-            $this->getTranslator()->trans('Complicated shown -') . ' ' . $statistics['COMPLICATED_SHOWN']
-        );
+        $blocks = [];
+        foreach ($statistics as $language => $data) {
+            $blocks[] = $this->formatLanguageStatisticsBlock($language, $data);
+        }
+
+        return $this->replyToChat(implode(PHP_EOL . PHP_EOL, $blocks));
+    }
+
+    private function formatLanguageStatisticsBlock(string $language, array $data): string
+    {
+        return
+            $this->getTranslator()->trans('Language is -') . ' ' . $language . PHP_EOL .
+            $this->getTranslator()->trans('Words total count -') . ' ' . $data['TOTAL'] . PHP_EOL .
+            $this->getTranslator()->trans('Words total shown count -') . ' ' . $data['TOTAL_SHOWN'] . PHP_EOL .
+            $this->getTranslator()->trans('Complicated -') . ' ' . $data['COMPLICATED'] . PHP_EOL .
+            $this->getTranslator()->trans('Complicated shown -') . ' ' . $data['COMPLICATED_SHOWN'];
     }
 }

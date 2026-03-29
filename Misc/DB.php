@@ -385,21 +385,31 @@ class DB
             return [];
         }
         try {
-            $stmt = self::$pdo->prepare(sprintf('SELECT
-                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `language` = :lang) AS TOTAL,
-                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `shown` = :shown AND deleted = false AND `language` = :lang) AS TOTAL_SHOWN,
-                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `complicated` = :complicated AND deleted = false AND `language` = :lang) AS COMPLICATED,
-                (SELECT COUNT(*) FROM `%s` WHERE `user_id` = :user_id AND `complicated` = :complicated AND `shown` = :shown AND deleted = false AND `language` = :lang) AS COMPLICATED_SHOWN
-            ', self::CARDS, self::CARDS, self::CARDS, self::CARDS));
+            $stmt = self::$pdo->prepare(sprintf(
+                'SELECT `language`,
+                    COUNT(*) AS TOTAL,
+                    SUM(`shown` = true) AS TOTAL_SHOWN,
+                    SUM(`complicated` = true) AS COMPLICATED,
+                    SUM(`complicated` = true AND `shown` = true) AS COMPLICATED_SHOWN
+                FROM `%s`
+                WHERE `user_id` = :user_id AND `deleted` = false
+                GROUP BY `language`',
+                self::CARDS
+            ));
             $stmt->bindValue(':user_id', $user->getId(), PDO::PARAM_INT);
-            $stmt->bindValue(':complicated', true, PDO::PARAM_BOOL);
-            $stmt->bindValue(':shown', true, PDO::PARAM_BOOL);
-            $stmt->bindValue(':lang', $user->getLanguage());
             $stmt->execute();
-            return $stmt->fetch();
+            $result = [];
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $language = $row['language'];
+                unset($row['language']);
+                $result[$language] = $row;
+            }
+
+            return $result;
         } catch (PDOException $e) {
             self::$logger->error($e->getMessage());
         }
+
         return [];
     }
 
