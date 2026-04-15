@@ -120,7 +120,10 @@ class DB
             return [];
         }
 
-        $statistics = self::getStatistic($user);
+        $statistics = self::getStatistic($user)[$user->getLanguage()] ?? null;
+        if (!$statistics) {
+            return [];
+        }
         if(
             ($hard && $statistics['COMPLICATED'] === $statistics['COMPLICATED_SHOWN'])
             || ($statistics['TOTAL'] === $statistics['TOTAL_SHOWN'])

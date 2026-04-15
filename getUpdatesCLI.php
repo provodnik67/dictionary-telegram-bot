@@ -27,7 +27,7 @@ foreach ($requirements as $dir) {
     }
 }
 Config::initialize(Yaml::parseFile(__DIR__ . '/config.yml'));
-$seconds = 20;
+$seconds = 80;
 $pdoLogger = new Logger('pdo_logger');
 $pdoLogger->pushHandler(new StreamHandler(__DIR__ . '/pdo_error_log', Logger::DEBUG));
 $pdoLogger->pushHandler(new FirePHPHandler());
