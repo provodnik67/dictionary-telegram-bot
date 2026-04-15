@@ -7,4 +7,6 @@
 /tg_error_log
 /token_error_log
 /speech_kit_error_log
+/deep_seek_log
 /cache/
+getUpdatesCLI.lock

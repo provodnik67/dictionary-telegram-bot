@@ -1,10 +1,5 @@
 <?php
 
-// Удалён блок с ps/grep/wc.
-// Перед циклом берётся неблокирующий эксклюзивный flock на файл getUpdatesCLI.lock: если лок уже занят — скрипт тихо выходит с кодом 0 (удобно для крона).
-// Telegram создаётся один раз и в цикле вызывается только handleGetUpdates().
-// В конце явно снимается блокировка (LOCK_UN + fclose).
-
 use Misc\Config;
 use Misc\DB;
 use Misc\DeepSeekAPI;
@@ -47,11 +42,14 @@ if(
     !empty(Config::get('misc.deep_seek_base_url')) &&
     !empty(Config::get('misc.depp_seek_assistant_prompt'))
 ) {
+    $deepSeekLogger = new Logger('deep_seek_logger');
+    $deepSeekLogger->pushHandler(new StreamHandler(__DIR__ . '/deep_seek_log', Logger::DEBUG));
+    $deepSeekLogger->pushHandler(new FirePHPHandler());
     DeepSeekAPI::initialize(
         Config::get('misc.deep_seek_api_key'),
         Config::get('misc.deep_seek_base_url'),
         Config::get('misc.depp_seek_assistant_prompt'),
-        $pdoLogger // @todo наверно свои логи надо вести, а не pdo
+        $deepSeekLogger
     );
 }
 if(
