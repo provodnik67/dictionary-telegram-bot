@@ -9,15 +9,6 @@ use Monolog\Handler\StreamHandler;
 use Monolog\Handler\FirePHPHandler;
 use Symfony\Component\Yaml\Yaml;
 
-$try = 3;
-while ($try--) {
-    if((int)shell_exec('ps aux | grep -v grep | grep ' . __FILE__ . ' | wc  -l') > 2) {
-        sleep(3);
-    }
-    else {
-        break;
-    }
-}
 require __DIR__ . '/vendor/autoload.php';
 $requirements = [
     __DIR__ . '/Misc/',
@@ -51,11 +42,14 @@ if(
     !empty(Config::get('misc.deep_seek_base_url')) &&
     !empty(Config::get('misc.depp_seek_assistant_prompt'))
 ) {
+    $deepSeekLogger = new Logger('deep_seek_logger');
+    $deepSeekLogger->pushHandler(new StreamHandler(__DIR__ . '/deep_seek_log', Logger::DEBUG));
+    $deepSeekLogger->pushHandler(new FirePHPHandler());
     DeepSeekAPI::initialize(
         Config::get('misc.deep_seek_api_key'),
         Config::get('misc.deep_seek_base_url'),
         Config::get('misc.depp_seek_assistant_prompt'),
-        $pdoLogger // @todo наверно свои логи надо вести, а не pdo
+        $deepSeekLogger
     );
 }
 if(
@@ -76,16 +70,28 @@ if(
         );
     }
 }
+
+$lockHandle = fopen(__DIR__ . '/getUpdatesCLI.lock', 'c');
+if ($lockHandle === false) {
+    fwrite(STDERR, date('Y-m-d H:i:s') . " - Cannot open lock file\n");
+    exit(1);
+}
+if (!flock($lockHandle, LOCK_EX | LOCK_NB)) {
+    fclose($lockHandle);
+    exit(0);
+}
+
+$telegram = new Longman\TelegramBot\Telegram(Config::get('bot.api_key'), Config::get('bot.username'));
+$telegram->addCommandsPaths([__DIR__ . '/Commands']);
+$telegram->addCommandsPaths([__DIR__ . '/BaseCommands']);
+$telegram->useGetUpdatesWithoutDatabase();
+
 while ($seconds--) {
     try {
-        $telegram = new Longman\TelegramBot\Telegram(Config::get('bot.api_key'), Config::get('bot.username'));
-        $telegram->addCommandsPaths([__DIR__ . '/Commands']);
-        $telegram->addCommandsPaths([__DIR__ . '/BaseCommands']);
-        $telegram->useGetUpdatesWithoutDatabase();
         $server_response = $telegram->handleGetUpdates();
         if ($server_response->isOk()) {
             $update_count = count($server_response->getResult());
-            echo date('Y-m-d H:i:s') . ' - Processed ' . $update_count . ' updates';
+            echo date('Y-m-d H:i:s') . ' - Processed ' . $update_count . ' updates' . PHP_EOL;
         } else {
             echo date('Y-m-d H:i:s') . ' - Failed to fetch updates' . PHP_EOL;
             echo $server_response->printError();
@@ -95,3 +101,6 @@ while ($seconds--) {
     }
     sleep(3);
 }
+
+flock($lockHandle, LOCK_UN);
+fclose($lockHandle);
