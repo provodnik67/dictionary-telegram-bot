@@ -27,7 +27,6 @@ foreach ($requirements as $dir) {
     }
 }
 Config::initialize(Yaml::parseFile(__DIR__ . '/config.yml'));
-$seconds = 80;
 $pdoLogger = new Logger('pdo_logger');
 $pdoLogger->pushHandler(new StreamHandler(__DIR__ . '/pdo_error_log', Logger::DEBUG));
 $pdoLogger->pushHandler(new FirePHPHandler());
@@ -86,9 +85,9 @@ $telegram->addCommandsPaths([__DIR__ . '/Commands']);
 $telegram->addCommandsPaths([__DIR__ . '/BaseCommands']);
 $telegram->useGetUpdatesWithoutDatabase();
 
-while ($seconds--) {
+while (true) {
     try {
-        $server_response = $telegram->handleGetUpdates();
+        $server_response = $telegram->handleGetUpdates(['timeout' => 30]);
         if ($server_response->isOk()) {
             $update_count = count($server_response->getResult());
             echo date('Y-m-d H:i:s') . ' - Processed ' . $update_count . ' updates' . PHP_EOL;
@@ -99,8 +98,4 @@ while ($seconds--) {
     } catch (Longman\TelegramBot\Exception\TelegramException $e) {
         echo $e->getMessage();
     }
-    sleep(3);
 }
-
-flock($lockHandle, LOCK_UN);
-fclose($lockHandle);
