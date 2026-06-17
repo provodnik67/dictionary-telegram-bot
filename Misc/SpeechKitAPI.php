@@ -2,29 +2,34 @@
 
 namespace Misc;
 
+use DateTime;
+use Exception;
 use Model\User;
 use Monolog\Logger;
 
 class SpeechKitAPI
 {
-    private static string $token;
     private static string $baseUrl;
     private static string $folderId;
     private static Logger $logger;
     private static string $cacheFolder;
     private static bool $isInitialized = false;
+    private static string $authUrl;
+    private static string $authToken;
     public static function initialize(
         Logger $logger,
-        string $token,
         string $baseUrl,
         string $folderId,
-        ?string $cacheFolder = null
+        string $authUrl,
+        string $authToken,
+        ?string $cacheFolder = null,
     ): void
     {
         self::$logger = $logger;
-        self::$token = $token;
         self::$baseUrl = $baseUrl;
         self::$folderId = $folderId;
+        self::$authUrl = $authUrl;
+        self::$authToken = $authToken;
         self::$cacheFolder = $cacheFolder;
         self::$isInitialized = true;
     }
@@ -34,14 +39,63 @@ class SpeechKitAPI
         return self::$isInitialized;
     }
 
+    /**
+     * @throws Exception
+     */
+    private static function getIAMToken()
+    {
+        $data = json_encode([
+            'yandexPassportOauthToken' => self::$authToken,
+        ]);
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, self::$authUrl);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'Content-Length: ' . strlen($data)
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($httpCode !== 200) {
+            throw new Exception("HTTP Error: $httpCode - $response");
+        }
+        return json_decode($response, true);
+    }
+
+    private static function revokeIAMToken($oldToken): void
+    {
+        $data = json_encode([
+            'iamToken' => $oldToken
+        ]);
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, sprintf('%s:revoke', self::$authUrl));
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'Content-Length: ' . strlen($data),
+            'Authorization: Bearer ' . $oldToken
+        ]);
+        curl_exec($ch);
+        curl_close($ch);
+    }
+
     public static function textToSpeech(string $message, User $user, int $cardId): ?string
     {
-        if(!file_exists(self::$cacheFolder)) {
+        if (!file_exists(self::$cacheFolder)) {
             self::$logger->error('SpeechKitAPI - cache folder is mandatory');
             return null;
         }
-        if(!$user->isVoiceMessagesEnabled()) {
+        if (!$user->isVoiceMessagesEnabled()) {
             self::$logger->error('SpeechKitAPI - user does not have a right to create a voice message: ' . $user->getId());
+            return null;
+        }
+        $tokenData = self::resolveTokenData();
+        if ($tokenData === null) {
             return null;
         }
         $fromCache = self::searchInTheCache($user->getId(), $cardId);
@@ -61,7 +115,7 @@ class SpeechKitAPI
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => http_build_query($data),
             CURLOPT_HTTPHEADER => [
-                sprintf("Authorization: Bearer %s", self::$token),
+                sprintf("Authorization: Bearer %s", $tokenData['iam_token']),
             ],
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_FOLLOWLOCATION => true,
@@ -82,6 +136,45 @@ class SpeechKitAPI
         }
 
         return self::storeInTheCache($response, $user->getId(), $cardId);
+    }
+
+    private static function resolveTokenData(): ?array
+    {
+        $tokenData = DB::getToken() ?? ['iam_token' => null, 'iam_token_expires_at' => null];
+        $expiresAt = null;
+        if (!empty($tokenData['iam_token_expires_at'])) {
+            try {
+                $expiresAt = new DateTime($tokenData['iam_token_expires_at']);
+            } catch (Exception) {
+                self::$logger->warning('SpeechKitAPI - invalid expiresAt: ' . $tokenData['iam_token_expires_at']);
+            }
+        }
+        if (empty($tokenData['iam_token']) || $expiresAt === null || (new DateTime()) > $expiresAt) {
+            try {
+                if (!empty($tokenData['iam_token'])) {
+                    self::revokeIAMToken($tokenData['iam_token']);
+                }
+                $result = self::getIAMToken();
+                if (empty($result['iamToken'])) {
+                    self::$logger->error('SpeechKitAPI - IAM token not returned by API.');
+                    return null;
+                }
+                $tokenData = DB::refreshToken($result);
+                if ($tokenData === null) {
+                    self::$logger->error('SpeechKitAPI - impossible to refresh token.');
+                    return null;
+                }
+            } catch (Exception $e) {
+                self::$logger->error(sprintf('SpeechKitAPI - %s', $e->getMessage()));
+                return null;
+            }
+        }
+        if (empty($tokenData['iam_token'])) {
+            self::$logger->error('SpeechKitAPI - IAM token is empty.');
+            return null;
+        }
+
+        return $tokenData;
     }
 
     private static function storeInTheCache($voiceMessage, int $userId, int $cardId): ?string

@@ -508,16 +508,16 @@ class DB
         }
     }
 
-    public static function getToken(): ?string
+    public static function getToken(): ?array
     {
         if (!self::isDbConnected()) {
             return null;
         }
         try {
-            $stmt = self::$pdo->prepare(sprintf('SELECT iam_token FROM `%s`', self::SETTINGS));
+            $stmt = self::$pdo->prepare(sprintf('SELECT iam_token, iam_token_expires_at FROM `%s`', self::SETTINGS));
             $stmt->execute();
             if($data = $stmt->fetch()) {
-                return $data['iam_token'];
+                return $data;
             }
             return null;
         } catch (PDOException|Exception $e) {
@@ -526,15 +526,39 @@ class DB
         return null;
     }
 
-    public static function refreshToken(string $token): void
+    public static function refreshToken(array $data): ?array
     {
+        $token = $data['iamToken'];
         try {
-            $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET iam_token = :token', self::SETTINGS));
+            $expiresAt = !empty($data['expiresAt'])
+                ? new DateTime($data['expiresAt'])
+                : new DateTime('+1 hour');
+        } catch (Exception) {
+            self::$logger->warning('Invalid expiresAt: ' . ($data['expiresAt'] ?? ''));
+            $expiresAt = new DateTime('+1 hour');
+        }
+        try {
+            $stmt = self::$pdo->prepare(sprintf('UPDATE %s SET iam_token = :token, iam_token_expires_at = :expires_at', self::SETTINGS));
             $stmt->bindValue(':token', $token);
+            $stmt->bindValue(':expires_at', $expiresAt->format('Y-m-d H:i:s'));
             $stmt->execute();
+            if ($stmt->rowCount() === 0) {
+                $stmt = self::$pdo->prepare(sprintf(
+                    'INSERT INTO `%s` (`iam_token`, `iam_token_expires_at`) VALUES (:token, :expires_at)',
+                    self::SETTINGS
+                ));
+                $stmt->bindValue(':token', $token);
+                $stmt->bindValue(':expires_at', $expiresAt->format('Y-m-d H:i:s'));
+                $stmt->execute();
+            }
         } catch (PDOException $e) {
             self::$logger->error($e->getMessage());
+            return null;
         }
+        return [
+            'iam_token' => $token,
+            'iam_token_expires_at' => $expiresAt->format('Y-m-d H:i:s')
+        ];
     }
 
     public static function changeLanguage(User $user, string $isoCode): void

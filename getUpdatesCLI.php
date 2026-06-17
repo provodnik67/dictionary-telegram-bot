@@ -54,20 +54,21 @@ if(
 if(
     !empty(Config::get('misc.speech_kit.folder_id')) &&
     !empty(Config::get('misc.speech_kit.url')) &&
-    !empty(Config::get('misc.speech_kit.cache_folder'))
+    !empty(Config::get('misc.speech_kit.cache_folder')) &&
+    !empty(Config::get('misc.auth_url')) &&
+    !empty(Config::get('misc.auth_token'))
 ) {
-    if($iamToken = DB::getToken()) {
-        $speechKitLogger = new Logger('speech_kit_logger');
-        $speechKitLogger->pushHandler(new StreamHandler(__DIR__ . '/speech_kit_error_log', Logger::DEBUG));
-        $speechKitLogger->pushHandler(new FirePHPHandler());
-        SpeechKitAPI::initialize(
-            $speechKitLogger,
-            $iamToken,
-            Config::get('misc.speech_kit.url'),
-            Config::get('misc.speech_kit.folder_id'),
-            Config::get('misc.speech_kit.cache_folder'),
-        );
-    }
+    $speechKitLogger = new Logger('speech_kit_logger');
+    $speechKitLogger->pushHandler(new StreamHandler(__DIR__ . '/speech_kit_error_log', Logger::DEBUG));
+    $speechKitLogger->pushHandler(new FirePHPHandler());
+    SpeechKitAPI::initialize(
+        $speechKitLogger,
+        Config::get('misc.speech_kit.url'),
+        Config::get('misc.speech_kit.folder_id'),
+        Config::get('misc.auth_url'),
+        Config::get('misc.auth_token'),
+        Config::get('misc.speech_kit.cache_folder'),
+    );
 }
 
 $telegram = new Longman\TelegramBot\Telegram(Config::get('bot.api_key'), Config::get('bot.username'));
@@ -83,9 +84,12 @@ while (true) {
             echo date('Y-m-d H:i:s') . ' - Processed ' . $update_count . ' updates' . PHP_EOL;
         } else {
             echo date('Y-m-d H:i:s') . ' - Failed to fetch updates' . PHP_EOL;
-            echo $server_response->printError();
+            $error = $server_response->printError();
+            $pdoLogger->error($error);
+            echo $error;
         }
     } catch (Longman\TelegramBot\Exception\TelegramException $e) {
+        $pdoLogger->error($e->getMessage());
         echo $e->getMessage();
     }
 }
