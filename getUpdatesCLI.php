@@ -33,7 +33,7 @@ $pdoLogger->pushHandler(new FirePHPHandler());
 try {
     DB::initialize(Config::get('database'), 'utf8', PDO::ERRMODE_EXCEPTION, $pdoLogger);
 } catch (Exception $e) {
-    $pdoLogger->error($e->getMessage());
+    $pdoLogger->error('getUpdatesCLI | DB::initialize: ' . $e->getMessage());
     die;
 }
 if(
@@ -85,11 +85,11 @@ while (true) {
         } else {
             echo date('Y-m-d H:i:s') . ' - Failed to fetch updates' . PHP_EOL;
             $error = $server_response->printError();
-            $pdoLogger->error($error);
+            $pdoLogger->error('getUpdatesCLI | server_response: ' . date('Y-m-d H:i:s') . ' - Failed to fetch updates: ' . $error);
             echo $error;
         }
     } catch (Longman\TelegramBot\Exception\TelegramException $e) {
-        $pdoLogger->error($e->getMessage());
+        $pdoLogger->error('getUpdatesCLI | TelegramException: ' . $e->getMessage());
         echo $e->getMessage();
     }
 }

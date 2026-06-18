@@ -53,7 +53,7 @@ class DB
             $pdo = new PDO($dsn, $credentials['user'], $credentials['password'], $options);
             $pdo->setAttribute(PDO::ATTR_ERRMODE, $errMode);
         } catch (PDOException $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | initialize: ' . $e->getMessage());
         }
 
         self::$pdo = $pdo;
@@ -82,7 +82,7 @@ class DB
                 $message->setText(sprintf('%s%s --> <span class="tg-spoiler">%s</span>', ($row['complicated'] ? '** ' : ''), $row[$keys[$key]], $row[$keys[abs($key - 1)]]));
                 $messages[] = $message;
             } catch (Exception $e) {
-                self::$logger->error($e->getMessage());
+                self::$logger->error('DB | fillMessages: ' . $e->getMessage());
             }
         }
         return $messages;
@@ -96,7 +96,7 @@ class DB
             $stmt->bindParam(':five_minutes_ago', $fiveMinutesAgo);
             $stmt->execute();
         } catch (PDOException $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | onInitialize: ' . $e->getMessage());
         }
     }
 
@@ -110,7 +110,7 @@ class DB
             }
             $stmt->execute();
         } catch (PDOException $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | resetDictionary: ' . $e->getMessage());
         }
     }
 
@@ -153,7 +153,7 @@ class DB
             $stmt->bindValue(':shown', false, PDO::PARAM_BOOL);
             $stmt->execute();
         } catch (PDOException $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | getSpecificNumberOfWords | SELECT1: ' . $e->getMessage());
         }
         $messages = self::fillMessages($stmt);
         $reset = false;
@@ -175,7 +175,7 @@ class DB
                 }
                 $stmt->execute();
             } catch (PDOException $e) {
-                self::$logger->error($e->getMessage());
+                self::$logger->error('DB | getSpecificNumberOfWords | SELECT2: ' . $e->getMessage());
             }
             $messages = array_merge($messages, self::fillMessages($stmt));
             self::resetDictionary($user->getId(), $hard);
@@ -187,7 +187,7 @@ class DB
                 $stmt->bindValue(':user_id', $user->getId(), PDO::PARAM_INT);
                 $stmt->execute();
             } catch (PDOException $e) {
-                self::$logger->error($e->getMessage());
+                self::$logger->error('DB | getSpecificNumberOfWords | UPDATE: ' . $e->getMessage());
             }
         }
         return $messages;
@@ -209,7 +209,7 @@ class DB
             $stmt->bindValue(':language', $user->getLanguage());
             return $stmt->execute();
         } catch (PDOException $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | insertWord: ' . $e->getMessage());
         }
         return false;
     }
@@ -225,7 +225,7 @@ class DB
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | recoverWord: ' . $e->getMessage());
         }
     }
 
@@ -240,7 +240,7 @@ class DB
             $stmt->bindValue(':word_id', $wordId, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | deleteWordForever: ' . $e->getMessage());
         }
     }
 
@@ -256,7 +256,7 @@ class DB
             $stmt->bindValue(':deleted_at', (new DateTime())->format('Y-m-d H:i:s'));
             $stmt->execute();
         } catch (PDOException $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | removeWord | UPDATE: ' . $e->getMessage());
         }
         $recycleBinLimit = Config::get('recycle_bin_limit') ?? 30;
         $query = sprintf('DELETE FROM %s WHERE user_id = :user_id AND deleted = true AND
@@ -272,7 +272,7 @@ class DB
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | removeWord | DELETE: ' . $e->getMessage());
         }
     }
 
@@ -285,7 +285,7 @@ class DB
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | getDeleted | SELECT: ' . $e->getMessage());
         }
         while ($row = $stmt->fetch()) {
             try {
@@ -293,7 +293,7 @@ class DB
                 $message->setText(sprintf('%s --> %s', $row['translation'], $row['ru']));
                 $messages[] = $message;
             } catch (Exception $e) {
-                self::$logger->error($e->getMessage());
+                self::$logger->error('DB | simpleSearch | Message::factory: ' . $e->getMessage());
             }
         }
         return $messages;
@@ -311,7 +311,7 @@ class DB
             $stmt->bindValue(':lang', $user->getLanguage());
             $stmt->execute();
         } catch (PDOException $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | simpleSearch | SELECT: ' . $e->getMessage());
         }
         $oppositeColumn = $column === 'translation' ? 'ru' : 'translation';
         while ($row = $stmt->fetch()) {
@@ -320,7 +320,7 @@ class DB
                 $message->setText(sprintf('%s%s --> <span class="tg-spoiler">%s</span>', ($row['complicated'] ? '** ' : ''), $row[$column], $row[$oppositeColumn]));
                 $messages[] = $message;
             } catch (Exception $e) {
-                self::$logger->error($e->getMessage());
+                self::$logger->error('DB | simpleSearch | Message::factory: ' . $e->getMessage());
             }
         }
         return $messages;
@@ -346,7 +346,7 @@ class DB
             $stmt->execute();
             return (bool)$data['complicated'];
         } catch (PDOException $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | toggleComplicated: ' . $e->getMessage());
         }
         return null;
     }
@@ -377,7 +377,7 @@ class DB
             $stmt->execute();
             return self::loadSingleWord($wordId);
         } catch (PDOException|Exception $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | resetShown: ' . $e->getMessage());
         }
         return null;
     }
@@ -410,7 +410,7 @@ class DB
 
             return $result;
         } catch (PDOException $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | getStatistic: ' . $e->getMessage());
         }
 
         return [];
@@ -440,7 +440,7 @@ class DB
             $stmt->execute();
             return $newUser;
         } catch (PDOException|Exception $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | getOrCreateUser: ' . $e->getMessage());
         }
         return null;
     }
@@ -458,7 +458,7 @@ class DB
                 return $data['translation'];
             }
         } catch (PDOException $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | getWord: ' . $e->getMessage());
         }
         return null;
     }
@@ -474,7 +474,7 @@ class DB
             $stmt->execute();
             return count($stmt->fetchAll()) > 0;
         } catch (PDOException $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | isCommandInProcess: ' . $e->getMessage());
         }
         return true;
     }
@@ -490,7 +490,7 @@ class DB
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | addCommandInProcess: ' . $e->getMessage());
         }
     }
 
@@ -504,7 +504,7 @@ class DB
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | removeCommandInProcess: ' . $e->getMessage());
         }
     }
 
@@ -521,7 +521,7 @@ class DB
             }
             return null;
         } catch (PDOException|Exception $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | getToken: ' . $e->getMessage());
         }
         return null;
     }
@@ -552,7 +552,7 @@ class DB
                 $stmt->execute();
             }
         } catch (PDOException $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | refreshToken: ' . $e->getMessage());
             return null;
         }
         return [
@@ -572,7 +572,7 @@ class DB
             $stmt->bindValue(':lang', $isoCode);
             $stmt->execute();
         } catch (PDOException $e) {
-            self::$logger->error($e->getMessage());
+            self::$logger->error('DB | changeLanguage: ' . $e->getMessage());
         }
     }
 }
