@@ -22,7 +22,9 @@ class DB
 
     private const SETTINGS = 'dictionary_settings';
 
-    protected static array $mysql_credentials = [];
+    private static array $credentials = [];
+    private static string $encoding = 'utf8';
+    private static int $errMode = PDO::ERRMODE_WARNING;
 
     protected static PDO $pdo;
 
@@ -31,33 +33,61 @@ class DB
     /**
      * @throws Exception
      */
-    public static function initialize(array $credentials, string $encoding = 'utf8', int $errMode = PDO::ERRMODE_WARNING, Logger $logger): PDO
+    private static function createConnection(): void
     {
-        if (empty($credentials)) {
+        if (empty(self::$credentials)) {
             throw new Exception('MySQL credentials not provided!');
         }
-        if (isset($credentials['unix_socket'])) {
-            $dsn = 'mysql:unix_socket=' . $credentials['unix_socket'];
+        if (isset(self::$credentials['unix_socket'])) {
+            $dsn = 'mysql:unix_socket=' . self::$credentials['unix_socket'];
         } else {
-            $dsn = 'mysql:host=' . $credentials['host'];
+            $dsn = 'mysql:host=' . self::$credentials['host'];
         }
-        $dsn .= ';dbname=' . $credentials['database'];
+        $dsn .= ';dbname=' . self::$credentials['database'];
 
-        if (!empty($credentials['port'])) {
-            $dsn .= ';port=' . $credentials['port'];
+        if (!empty(self::$credentials['port'])) {
+            $dsn .= ';port=' . self::$credentials['port'];
         }
         $pdo = null;
-        $options = [PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES ' . $encoding];
-        self::$logger = $logger;
+        $options = [PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES ' . self::$encoding];
         try {
-            $pdo = new PDO($dsn, $credentials['user'], $credentials['password'], $options);
-            $pdo->setAttribute(PDO::ATTR_ERRMODE, $errMode);
+            $pdo = new PDO($dsn, self::$credentials['user'], self::$credentials['password'], $options);
+            $pdo->setAttribute(PDO::ATTR_ERRMODE, self::$errMode);
         } catch (PDOException $e) {
-            self::$logger->error('DB | initialize: ' . $e->getMessage());
+            self::onPDOException($e);
+            self::$logger->error('DB | createConnection: ' . $e->getMessage());
         }
-
         self::$pdo = $pdo;
-        self::$mysql_credentials = $credentials;
+    }
+
+    private static function isConnectionLost(PDOException $e): bool
+    {
+        $driverCode = (int) ($e->errorInfo[1] ?? 0);
+
+        return $driverCode === 2006 || $driverCode === 2013;
+    }
+
+    private static function onPDOException(PDOException $e): void
+    {
+        if (self::isConnectionLost($e)) {
+            try {
+                self::createConnection();
+            } catch (Exception $e) {
+                self::$logger->error('DB | reCreateConnection: ' . $e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * @throws Exception
+     */
+    public static function initialize(array $credentials, string $encoding = 'utf8', int $errMode = PDO::ERRMODE_WARNING, Logger $logger): PDO
+    {
+        self::$credentials = $credentials;
+        self::$encoding = $encoding;
+        self::$errMode = $errMode;
+        self::$logger = $logger;
+        self::createConnection();
 
         if (self::isDbConnected()) {
             self::onInitialize();
@@ -96,6 +126,7 @@ class DB
             $stmt->bindParam(':five_minutes_ago', $fiveMinutesAgo);
             $stmt->execute();
         } catch (PDOException $e) {
+            self::onPDOException($e);
             self::$logger->error('DB | onInitialize: ' . $e->getMessage());
         }
     }
@@ -110,6 +141,7 @@ class DB
             }
             $stmt->execute();
         } catch (PDOException $e) {
+            self::onPDOException($e);
             self::$logger->error('DB | resetDictionary: ' . $e->getMessage());
         }
     }
@@ -153,6 +185,7 @@ class DB
             $stmt->bindValue(':shown', false, PDO::PARAM_BOOL);
             $stmt->execute();
         } catch (PDOException $e) {
+            self::onPDOException($e);
             self::$logger->error('DB | getSpecificNumberOfWords | SELECT1: ' . $e->getMessage());
         }
         $messages = self::fillMessages($stmt);
@@ -175,6 +208,7 @@ class DB
                 }
                 $stmt->execute();
             } catch (PDOException $e) {
+            self::onPDOException($e);
                 self::$logger->error('DB | getSpecificNumberOfWords | SELECT2: ' . $e->getMessage());
             }
             $messages = array_merge($messages, self::fillMessages($stmt));
@@ -187,6 +221,7 @@ class DB
                 $stmt->bindValue(':user_id', $user->getId(), PDO::PARAM_INT);
                 $stmt->execute();
             } catch (PDOException $e) {
+            self::onPDOException($e);
                 self::$logger->error('DB | getSpecificNumberOfWords | UPDATE: ' . $e->getMessage());
             }
         }
@@ -209,6 +244,7 @@ class DB
             $stmt->bindValue(':language', $user->getLanguage());
             return $stmt->execute();
         } catch (PDOException $e) {
+            self::onPDOException($e);
             self::$logger->error('DB | insertWord: ' . $e->getMessage());
         }
         return false;
@@ -225,6 +261,7 @@ class DB
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
+            self::onPDOException($e);
             self::$logger->error('DB | recoverWord: ' . $e->getMessage());
         }
     }
@@ -240,6 +277,7 @@ class DB
             $stmt->bindValue(':word_id', $wordId, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
+            self::onPDOException($e);
             self::$logger->error('DB | deleteWordForever: ' . $e->getMessage());
         }
     }
@@ -256,6 +294,7 @@ class DB
             $stmt->bindValue(':deleted_at', (new DateTime())->format('Y-m-d H:i:s'));
             $stmt->execute();
         } catch (PDOException $e) {
+            self::onPDOException($e);
             self::$logger->error('DB | removeWord | UPDATE: ' . $e->getMessage());
         }
         $recycleBinLimit = Config::get('recycle_bin_limit') ?? 30;
@@ -272,6 +311,7 @@ class DB
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
+            self::onPDOException($e);
             self::$logger->error('DB | removeWord | DELETE: ' . $e->getMessage());
         }
     }
@@ -285,6 +325,7 @@ class DB
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
+            self::onPDOException($e);
             self::$logger->error('DB | getDeleted | SELECT: ' . $e->getMessage());
         }
         while ($row = $stmt->fetch()) {
@@ -311,6 +352,7 @@ class DB
             $stmt->bindValue(':lang', $user->getLanguage());
             $stmt->execute();
         } catch (PDOException $e) {
+            self::onPDOException($e);
             self::$logger->error('DB | simpleSearch | SELECT: ' . $e->getMessage());
         }
         $oppositeColumn = $column === 'translation' ? 'ru' : 'translation';
@@ -346,6 +388,7 @@ class DB
             $stmt->execute();
             return (bool)$data['complicated'];
         } catch (PDOException $e) {
+            self::onPDOException($e);
             self::$logger->error('DB | toggleComplicated: ' . $e->getMessage());
         }
         return null;
@@ -410,6 +453,7 @@ class DB
 
             return $result;
         } catch (PDOException $e) {
+            self::onPDOException($e);
             self::$logger->error('DB | getStatistic: ' . $e->getMessage());
         }
 
@@ -458,12 +502,13 @@ class DB
                 return $data['translation'];
             }
         } catch (PDOException $e) {
+            self::onPDOException($e);
             self::$logger->error('DB | getWord: ' . $e->getMessage());
         }
         return null;
     }
 
-    public static function isCommandInProcess(int $userId): bool
+    public static function isCommandInProcess(int $userId, bool $retry = false): bool
     {
         if (!self::isDbConnected()) {
             throw new RuntimeException("Database connection failed");
@@ -474,9 +519,14 @@ class DB
             $stmt->execute();
             return count($stmt->fetchAll()) > 0;
         } catch (PDOException $e) {
+            self::onPDOException($e);
             self::$logger->error('DB | isCommandInProcess: ' . $e->getMessage());
+            if (!$retry && self::isConnectionLost($e)) {
+                return self::isCommandInProcess($userId, true);
+            }
         }
-        return true;
+
+        return false;
     }
 
     public static function addCommandInProcess(int $userId): void
@@ -490,6 +540,7 @@ class DB
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
+            self::onPDOException($e);
             self::$logger->error('DB | addCommandInProcess: ' . $e->getMessage());
         }
     }
@@ -504,6 +555,7 @@ class DB
             $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
+            self::onPDOException($e);
             self::$logger->error('DB | removeCommandInProcess: ' . $e->getMessage());
         }
     }
@@ -552,6 +604,7 @@ class DB
                 $stmt->execute();
             }
         } catch (PDOException $e) {
+            self::onPDOException($e);
             self::$logger->error('DB | refreshToken: ' . $e->getMessage());
             return null;
         }
@@ -572,6 +625,7 @@ class DB
             $stmt->bindValue(':lang', $isoCode);
             $stmt->execute();
         } catch (PDOException $e) {
+            self::onPDOException($e);
             self::$logger->error('DB | changeLanguage: ' . $e->getMessage());
         }
     }
